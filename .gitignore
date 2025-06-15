@@ -1,0 +1,12 @@
+# Files
+
+# Wildcard files.
+*.a
+*.o
+*.dll
+*.exe
+test*
+
+# Folders
+.vscode/
+dist/
