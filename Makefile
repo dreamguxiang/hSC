@@ -14,11 +14,11 @@ BIN_TARGET = $(DIST_DIR)/$(TARGET)
 CC = gcc
 CXX = g++
 
-CFLAGS = -Wall -Werror -g -Os -ffunction-sections -fdata-sections -Wl,--gc-sections -static -flto -s -mavx
+CFLAGS = -Wall -Werror -Wformat -g -Os -ffunction-sections -fdata-sections -Wl,--gc-sections -static -flto -s -mavx
 CFLAGS += -I./src/imgui-1.91.9b -I./src/imgui-1.91.9b/backends -I./src/MinHook
 
-LFLAGS = -lgdi32 -ld3d11 -lgdi32 -ldwmapi -ld3dcompiler -lstdc++ -lole32
-LFLAGS += -L./src/MinHook -lMinHook -L./src/imgui-1.91.9b -limgui -limgui_impl_win32 -limgui_impl_dx9 -ld3d9
+LFLAGS = -lgdi32 -ld3d9 -ldwmapi -ld3dcompiler -lstdc++
+LFLAGS += -L./src/MinHook -lMinHook -L./src/imgui-1.91.9b -limgui -limgui_impl_win32 -limgui_impl_dx9
 
 .PHONY: all clean libs clean_libs clean_all
 
