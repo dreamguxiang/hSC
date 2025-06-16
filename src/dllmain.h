@@ -4,6 +4,6 @@
 
 #include "MinHook/include/MinHook.h"
 #include "types.h"
-#include "offsets.h"
 #include "vector.h"
 #include "gui.h"
+#include "hooked.h"

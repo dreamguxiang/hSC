@@ -14,4 +14,6 @@
 #define f32 float
 #define f64 double
 
+#define PI_F (3.1415926535f)
+
 #endif
