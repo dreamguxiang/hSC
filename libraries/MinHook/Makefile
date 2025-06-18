@@ -27,11 +27,11 @@ MinHook.dll: $(OBJS) dll_resources/MinHook.res dll_resources/MinHook.def
 	$(CC) -o $@ -c -MMD -MP $(INCS) $(CFLAGS) $<
 
 clean:
-	del src\*.o
-	del MinHook.dll
-	del libMinHook.dll.a
-	del libMinHook.a
-	del dll_resources\MinHook.res
+	-del src\*.o
+	-del MinHook.dll
+	-del libMinHook.dll.a
+	-del libMinHook.a
+	-del dll_resources\MinHook.res
 
 .PHONY: clean
 .SUFFIXES: .rc .res
