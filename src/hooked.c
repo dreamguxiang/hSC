@@ -1,6 +1,4 @@
 #include <math.h>
-#include <stdio.h>
-
 #include "MinHook.h"
 
 #include "offsets.h"
@@ -10,6 +8,8 @@
 #include "hooked.h"
 
 #define MH_SUCCESSED(v, s) ((v) |= (!(s)))
+#define OVERRIDE_2(cond, v1, v2) ((cond) ? ((v1) = (v2)) : ((v2) = (v1)))
+#define OVERRIDE_3(cond, v11, v12, v2) ((cond) ? ((v11) = ((v12) = (v2))) : ((v2) = (v11)))
 
 LPVOID origin_SkyCamera_update
   , origin_SkyCamera_updateUI
@@ -18,6 +18,9 @@ extern GUI_t gui;
 
 static u64 SkyCamera_update_Listener(SkyCamera *this, u64 context) {
   u64 result;
+  // NOTE: We should NOT save the SkyCamera *this variable due to it may vary
+  // whenever. Every frame the update should be presented only by the detour
+  // function.
   result = ((u64 (__fastcall *)(SkyCamera *, u64))origin_SkyCamera_update)(this, context);
   return result;
 }

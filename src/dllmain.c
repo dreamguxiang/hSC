@@ -1,20 +1,20 @@
 #include "dllmain.h"
 
 LPVOID baseAddr;
-
 GUI_t gui = {0};
 
-static DWORD WINAPI wndThread(LPVOID lpParam) {
-  int s;
+static DWORD WINAPI onAttach(LPVOID lpParam) {
+  MSG msg;
+  i32 s;
 
   s = gui_init(&gui);
-  printf("[HT-INFO] gui_init(): %d\n", s);
+  LOGI("[HT-INFO] gui_init(): %d\n", s);
 
-  while (gui_update(&gui)) {
-    if (GetAsyncKeyState(VK_INSERT) & 0x1) {
-      gui.isOpen = !gui.isOpen;
-      ShowWindow(gui.hWnd, gui.isOpen ? SW_NORMAL : SW_HIDE);
-    }
+  while (GetMessageW(&msg, NULL, 0, 0)) {
+    if (msg.message == WM_USER_EXIT)
+      PostQuitMessage(0);
+    if (msg.message == WM_QUIT)
+      break;
   }
 
   gui_deinit(&gui);
@@ -28,8 +28,8 @@ BOOL APIENTRY DllMain(
   LPVOID lpReserved
 ) {
   MH_STATUS s;
-  HANDLE hSubThread;
-  DWORD threadId;
+  HANDLE hSubThread = NULL;
+  DWORD threadId = 0;
 
   if (dwReason == DLL_PROCESS_ATTACH) {
     baseAddr = (LPVOID)GetModuleHandleA("Sky.exe");
@@ -37,30 +37,30 @@ BOOL APIENTRY DllMain(
     if (!baseAddr)
       return TRUE;
 
-    FreeConsole();
-    AllocConsole();
-    freopen("CONOUT$", "w+t", stdout);
-    freopen("CONIN$", "r+t", stdin);
-    printf("[HT-INFO] Dll injected.\n");
-    printf("[HT-INFO] (Sky.exe + 0x0): 0x%p\n", baseAddr);
+    recreateConsole();
+
+    LOGI("[HT-INFO] Dll injected.\n");
+    LOGI("[HT-INFO] (Sky.exe + 0x0): 0x%p\n", baseAddr);
 
     MH_Initialize();
     createAllHooks(baseAddr);
     s = MH_EnableHook(MH_ALL_HOOKS);
-    printf("[HT-INFO] MH_EnableHook(): %d\n", s);
+    LOGI("[HT-INFO] MH_EnableHook(): %d\n", s);
 
     hSubThread = CreateThread(
       NULL,
       0,
-      wndThread,
+      onAttach,
       (LPVOID)hModule,
       0,
       &threadId
     );
     if (!hSubThread)
       return TRUE;
-    printf("[HT-INFO] CreateThread(): 0x%lX\n", threadId);
+    LOGI("[HT-INFO] CreateThread(): 0x%lX\n", threadId);
   } else if (dwReason == DLL_PROCESS_DETACH) {
+    PostThreadMessageW(threadId, WM_USER_EXIT, 0, 0);
+    WaitForSingleObject(hSubThread, INFINITE);
     MH_DisableHook(MH_ALL_HOOKS);
     MH_Uninitialize();
   }
