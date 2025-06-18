@@ -37,8 +37,12 @@ static void gui_wndProcEx(
     if (
       uMsg == WM_KEYDOWN
       || uMsg == WM_CHAR
-    )
-      *uBlock = io.WantCaptureKeyboard;
+    ) {
+      if (gui->state.overrideMode == 1) {
+        *uBlock = gui->state.enable;
+      } else
+        *uBlock = io.WantCaptureKeyboard;
+    }
     return;
   }
 
@@ -46,14 +50,21 @@ static void gui_wndProcEx(
 }
 
 i08 gui_init(GUI_t *gui) {
+  QueryPerformanceFrequency((LARGE_INTEGER *)&gui->performFreq);
   D3D12Hooks::init(
-    [](void *lpUser, const DXGI_SWAP_CHAIN_DESC *sDesc) -> void {
+    [](const DXGI_SWAP_CHAIN_DESC *sDesc, void *lpUser) -> void {
+      f32 dpiScale;
       ImGui::CreateContext();
       ImGui::StyleColorsDark();
 
       ImGuiIO &io = ImGui::GetIO(); (void)io;
       io.Fonts->AddFontDefault();
       io.IniFilename = NULL;
+
+      ImGuiStyle& style = ImGui::GetStyle();
+      dpiScale = ImGui_ImplWin32_GetDpiScaleForHwnd(sDesc->OutputWindow);
+      style.ScaleAllSizes(dpiScale);
+      io.FontGlobalScale = dpiScale;
 
       ImGui_ImplWin32_Init(UniHookGlobals::mainWindow);
       ImGui_ImplDX12_Init(
@@ -94,9 +105,67 @@ i08 gui_deinit(GUI_t *gui) {
   return 1;
 }
 
+static inline void gui_subMenuSet(GUI_t *gui) {
+  ImGui::SeparatorText("Set Camera Params");
+
+  // Camera position input.
+  ImGui::Checkbox("##cb1", (bool *)&gui->state.overridePos);
+  ImGui::SameLine();
+  ImGui::InputFloat3("Pos", (float *)&gui->state.pos);
+
+  // Camera facing input.
+  ImGui::Checkbox("##cb2", (bool *)&gui->state.overrideDir);
+  ImGui::SameLine();
+  ImGui::InputFloat2("Facing", (float *)&gui->state.rot);
+
+  // Clamp camera facing.
+  gui->state.rot.x = fmodf(gui->state.rot.x, 360.0f);
+  gui->state.rot.y = clamp(gui->state.rot.y, -89.5f, 89.5f);
+
+  // Camera scale input.
+  ImGui::Checkbox("##cb3", (bool *)&gui->state.overrideScale);
+  ImGui::SameLine();
+  ImGui::DragFloat("Scale", &gui->state.scale, .01f, 0.0f, 1.0f);
+
+  // Camera focus(blur) input.
+  ImGui::Checkbox("##cb4", (bool *)&gui->state.overrideFocus);
+  ImGui::SameLine();
+  ImGui::DragFloat("Focus", &gui->state.focus, .01f, 0.0f, 1.0f);
+
+  // Camera brightness input.
+  ImGui::Checkbox("##cb5", (bool *)&gui->state.overrideBrightness);
+  ImGui::SameLine();
+  ImGui::DragFloat("Brightness", &gui->state.brightness, .01f, 0.0f, 1.0f);
+}
+
+static inline void gui_subMenuFreecam(GUI_t *gui) {
+  ImGui::SeparatorText("Free camera");
+  ImGui::DragFloat("Speed", &gui->state.freecamSpeed, .01f, 0, 100.0f);
+  if (ImGui::Button("Reset pos"))
+    gui->state.freecamReset = 1;
+
+  if (ImGui::IsKeyDown(ImGuiKey_W))
+    // Go foward.
+    gui->state.freecamDir = 1;
+  else if (ImGui::IsKeyDown(ImGuiKey_A))
+    gui->state.freecamDir = 2;
+  else
+    gui->state.freecamDir = 0;
+}
+
 i08 gui_update(GUI_t *gui) {
+  i64 qpc, inteval;
   ImGuiIO &io = ImGui::GetIO();
   (void)io;
+
+  if (!gui->lastFrameCounter)
+    QueryPerformanceCounter((LARGE_INTEGER *)&gui->lastFrameCounter);
+  else {
+    QueryPerformanceCounter((LARGE_INTEGER *)&qpc);
+    inteval = qpc - gui->lastFrameCounter;
+    gui->lastFrameCounter = qpc;
+    gui->timeElapsedSecond = (f32)inteval / (f32)gui->performFreq;
+  }
 
   if (GetAsyncKeyState(VK_INSERT) & 0x1)
     gui->isOpen = !gui->isOpen;
@@ -120,44 +189,18 @@ i08 gui_update(GUI_t *gui) {
 
     // General switch.
     ImGui::Checkbox("Take over", (bool *)&gui->state.enable);
-    ImGui::Combo("Use mode", &gui->state.mode, MODES, IM_ARRAYSIZE(MODES));
+    ImGui::Combo("Use mode", &gui->state.cameraMode, MODES, IM_ARRAYSIZE(MODES));
 
-    // Camera position input.
-    ImGui::Checkbox("##cb1", (bool *)&gui->state.overridePos);
+    ImGui::RadioButton("Set", &gui->state.overrideMode, 0);
     ImGui::SameLine();
-    ImGui::InputFloat3("Pos", (float *)&gui->state.pos);
-
-    // Camera facing input.
-    ImGui::Checkbox("##cb2", (bool *)&gui->state.overrideDir);
+    ImGui::RadioButton("Freecam", &gui->state.overrideMode, 1);
     ImGui::SameLine();
-    ImGui::InputFloat2("Facing", (float *)&gui->state.rot);
+    ImGui::RadioButton("FPV", &gui->state.overrideMode, 2);
 
-    // Clamp camera facing.
-    gui->state.rot.x = fmodf(gui->state.rot.x, 360.0f);
-    gui->state.rot.y = clamp(gui->state.rot.y, -89.5f, 89.5f);
-
-    /*
-    if (
-      ImGui::SmallButton("Foward")
-      && gui->state.overridePos
-    ) {
-
-    }*/
-
-    // Camera scale input.
-    ImGui::Checkbox("##cb3", (bool *)&gui->state.overrideScale);
-    ImGui::SameLine();
-    ImGui::DragFloat("Scale", &gui->state.scale, .01f, 0.0f, 1.0f);
-
-    // Camera focus(blur) input.
-    ImGui::Checkbox("##cb4", (bool *)&gui->state.overrideFocus);
-    ImGui::SameLine();
-    ImGui::DragFloat("Focus", &gui->state.focus, .01f, 0.0f, 1.0f);
-
-    // Camera brightness input.
-    ImGui::Checkbox("##cb5", (bool *)&gui->state.overrideBrightness);
-    ImGui::SameLine();
-    ImGui::DragFloat("Brightness", &gui->state.brightness, .01f, 0.0f, 1.0f);
+    if (gui->state.overrideMode == 0)
+      gui_subMenuSet(gui);
+    if (gui->state.overrideMode == 1)
+      gui_subMenuFreecam(gui);
 
     // Overlay window FPS display.
     ImGui::Text("Overlay %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);

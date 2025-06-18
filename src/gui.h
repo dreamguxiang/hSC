@@ -10,31 +10,44 @@
 #define WM_USER_EXIT (0x8000 + 1)
 #define clamp(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
-  i32 mode;
+  // General controller.
+  i08 enable;
+  i32 cameraMode;
+  i32 overrideMode;
+
+  // Original data sync.
   v4f pos;
   v2f rot;
   f32 scale;
   f32 focus;
   f32 brightness;
-  i08 enable;
+
+  // Set param mode.
   i08 overridePos;
   i08 overrideDir;
   i08 overrideFocus;
   i08 overrideScale;
   i08 overrideBrightness;
+
+  f32 freecamSpeed;
+  i32 freecamDir;
+  i08 freecamReset;
 } GUIState_t;
 
 typedef struct {
   HWND hWnd;
   GUIState_t state;
+  i64 performFreq;
+  i64 lastFrameCounter;
+  f32 timeElapsedSecond;
   f32 dpiScale;
   i08 isOpen;
 } GUI_t;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 i08 gui_init(GUI_t *gui);
 i08 gui_deinit(GUI_t *gui);

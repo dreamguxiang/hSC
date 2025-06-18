@@ -57,5 +57,5 @@ libimgui_impl_opengl3.a: ./imgui_impl_opengl3.o
 	$(CXX) $(CFLAGS) -c $< -o $@
 
 clean:
-	del *.o
-	del *.a
+	-del *.o
+	-del *.a

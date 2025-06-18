@@ -102,7 +102,7 @@ namespace D3D12Hooks {
     }
 
     if (cbInit)
-      cbInit(pUser, &sdesc);
+      cbInit(&sdesc, pUser);
 
     return true;
   }
@@ -131,9 +131,6 @@ namespace D3D12Hooks {
     UINT SyncInterval,
     UINT Flags
   ) {
-    /*if (GetAsyncKeyState(UniHookGlobals::openMenuKey) & 0x1)
-      menu::isOpen ? menu::isOpen = false : menu::isOpen = true;*/
-
     if (!gInit) {
       // Initialize from Present.
       gSavedSwapChain = pSwapChain;
@@ -235,7 +232,6 @@ namespace D3D12Hooks {
   bool deinit() {
     clearAll();
     kiero::shutdown();
-    //InputHandler::Remove(UniHookGlobals::mainWindow);
     return true;
   }
 }

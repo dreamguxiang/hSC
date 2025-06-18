@@ -9,7 +9,7 @@
 #include "aliases.h"
 
 namespace D3D12Hooks {
-  typedef void (__fastcall *InitCB)(void *, const DXGI_SWAP_CHAIN_DESC *);
+  typedef void (__fastcall *InitCB)(const DXGI_SWAP_CHAIN_DESC *, void *);
   typedef void (__fastcall *PresentCB)(void *);
   typedef void (__fastcall *DeinitCB)(void *);
 

@@ -47,11 +47,11 @@ $(DIST_DIR)/%.o: $(SRC_DIR)/%.cpp
 clean_all: clean_libs clean
 
 clean:
-	@del .\dist\*.o
-	@del .\dist\*.dll
+	-@del .\dist\*.o
+	-@del .\dist\*.dll
 
 all: libs
-	@make $(BIN_TARGET)
+	-@make $(BIN_TARGET)
 
 libs:
 	@echo Compiling libraries ...

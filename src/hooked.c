@@ -16,6 +16,79 @@ LPVOID origin_SkyCamera_update
   , origin_SkyCamera__updateParams;
 extern GUI_t gui;
 
+static void updateCameraSet(SkyCamera *this) {
+  v4f *pos, *dir;
+  v2f *gsRot, rot;
+
+  if (!(this->cameraType == gui.state.cameraMode + 1))
+    return;
+
+  pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
+  dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
+
+  //((u64 (__fastcall *)(u64, v4f *))baseAddr + offset_Player_getPos)(this->player, &pp);
+
+  gsRot = &gui.state.rot;
+
+  // Override coodinates or sync original camera pos to overlay.
+  OVERRIDE_2(gui.state.overridePos, *pos, gui.state.pos);
+
+  if (gui.state.overrideDir) {
+    // Override facing directions.
+    rot.x = PI_F * gsRot->x / 180.0f;
+    rot.y = PI_F * gsRot->y / 180.0f;
+
+    // Forcely reset the rotate status.
+    this->rotateSpeedX = this->rotateSpeedY = 0;
+    this->rotateXAnim = this->rotateX = rot.x;
+    this->rotateYAnim = this->rotateY = rot.y;
+
+    dir->x = sinf(rot.x) * cosf(rot.y);
+    // When this->rotateY is increasing, the camera actually turned down, so
+    // there's a negative sign here.
+    dir->y = -sinf(rot.y);
+    // When this->rotateX == 0, dir->z will be set to 1, so we put 
+    // cosf(rot.x) on dir->z.
+    dir->z = cosf(rot.x) * cosf(rot.y);
+  } else {
+    // Sync original facing directions to overlay.
+    gsRot->y = -asinf(dir->y) / PI_F * 180.0f;
+
+    if (dir->x == 0 && dir->z == 0)
+      gsRot->x = 0;
+    else {
+      // There will be some floating point errors here, but it's fine.
+      gsRot->x = atan2f(dir->x, dir->z) / PI_F * 180.0f;
+      gsRot->x += gsRot->x < 0 ? 360.0f : 0;
+    }
+  }
+
+  // Override or sync camera params.
+  OVERRIDE_3(gui.state.overrideScale, this->scaleAnim, this->scale, gui.state.scale);
+  OVERRIDE_3(gui.state.overrideFocus, this->focusAnim, this->focus, gui.state.focus);
+  OVERRIDE_3(gui.state.overrideBrightness, this->brightnessAnim, this->brightness, gui.state.brightness);
+}
+
+static void updateCameraFreecam(SkyCamera *this) {
+  v4f *pos, *dir;
+
+  if (!(this->cameraType == gui.state.cameraMode + 1))
+    return;
+
+  pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
+  dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
+  
+  if (gui.state.freecamReset) {
+    gui.state.pos = *pos;
+    gui.state.freecamReset = 0;
+    return;
+  }
+
+  if (gui.state.freecamDir == 1)
+    gui.state.pos = v4fadd(gui.state.pos, v4fscale(*dir, gui.state.freecamSpeed * gui.timeElapsedSecond));
+  *pos = gui.state.pos;
+}
+
 static u64 SkyCamera_update_Listener(SkyCamera *this, u64 context) {
   u64 result;
   // NOTE: We should NOT save the SkyCamera *this variable due to it may vary
@@ -27,56 +100,16 @@ static u64 SkyCamera_update_Listener(SkyCamera *this, u64 context) {
 
 static u64 SkyCamera__updateParams_Listener(SkyCamera *this, u64 context) {
   u64 result;
-  v4f *pos, *dir;
-  v2f *gsRot, rot;
 
   result = ((u64 (__fastcall *)(SkyCamera *, u64))origin_SkyCamera__updateParams)(this, context);
 
-  if (gui.state.enable && this->cameraType == gui.state.mode + 1) {
-    pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
-    dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
+  if (!gui.state.enable)
+    return result;
 
-    //((u64 (__fastcall *)(u64, v4f *))baseAddr + offset_Player_getPos)(this->player, &pp);
-
-    gsRot = &gui.state.rot;
-
-    // Override coodinates or sync original camera pos to overlay.
-    OVERRIDE_2(gui.state.overridePos, *pos, gui.state.pos);
-
-    if (gui.state.overrideDir) {
-      // Override facing directions.
-      rot.x = PI_F * gsRot->x / 180.0f;
-      rot.y = PI_F * gsRot->y / 180.0f;
-
-      // Forcely reset the rotate status.
-      this->rotateSpeedX = this->rotateSpeedY = 0;
-      this->rotateXAnim = this->rotateX = rot.x;
-      this->rotateYAnim = this->rotateY = rot.y;
-
-      dir->x = sinf(rot.x) * cosf(rot.y);
-      // When this->rotateY is increasing, the camera actually turned down, so
-      // there's a negative sign here.
-      dir->y = -sinf(rot.y);
-      // When this->rotateX == 0, dir->z will be set to 1, so we put 
-      // cosf(rot.x) on dir->z.
-      dir->z = cosf(rot.x) * cosf(rot.y);
-    } else {
-      // Sync original facing directions to overlay.
-      gsRot->y = -asinf(dir->y) / PI_F * 180.0f;
-
-      if (dir->x == 0 && dir->z == 0)
-        gsRot->x = 0;
-      else {
-        // There will be some floating point errors here, but it's fine.
-        gsRot->x = atan2f(dir->x, dir->z) / PI_F * 180.0f;
-        gsRot->x += gsRot->x < 0 ? 360.0f : 0;
-      }
-    }
-
-    // Override or sync camera params.
-    OVERRIDE_3(gui.state.overrideScale, this->scaleAnim, this->scale, gui.state.scale);
-    OVERRIDE_3(gui.state.overrideFocus, this->focusAnim, this->focus, gui.state.focus);
-    OVERRIDE_3(gui.state.overrideBrightness, this->brightnessAnim, this->brightness, gui.state.brightness);
+  if (gui.state.overrideMode == 0) {
+    updateCameraSet(this);
+  } else if (gui.state.overrideMode == 1) {
+    updateCameraFreecam(this);
   }
 
   return result;
