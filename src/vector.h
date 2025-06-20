@@ -48,6 +48,8 @@ typedef struct {
   f64 w;
 } V4D;
 
+static const v4f V4FZERO = {0};
+
 static inline v4f v4fadd(v4f a, v4f b);
 static inline v4f v4fsub(v4f a, v4f b);
 static inline v4f v4fmul(v4f a, v4f b);

@@ -1,13 +1,13 @@
 #include "dllmain.h"
 
 LPVOID baseAddr;
-GUI_t gui = {0};
+FPV_t fpv = {0};
 
 static DWORD WINAPI onAttach(LPVOID lpParam) {
   MSG msg;
   i32 s;
 
-  s = gui_init(&gui);
+  s = gui_init();
   LOGI("[HT-INFO] gui_init(): %d\n", s);
 
   while (GetMessageW(&msg, NULL, 0, 0)) {
@@ -17,7 +17,7 @@ static DWORD WINAPI onAttach(LPVOID lpParam) {
       break;
   }
 
-  gui_deinit(&gui);
+  gui_deinit();
 
   return 0;
 }
@@ -35,6 +35,7 @@ BOOL APIENTRY DllMain(
     baseAddr = (LPVOID)GetModuleHandleA("Sky.exe");
 
     if (!baseAddr)
+      // Not the correct game process.
       return TRUE;
 
     recreateConsole();

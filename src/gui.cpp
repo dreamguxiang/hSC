@@ -6,7 +6,14 @@
 
 #include "gui.h"
 
+#define clamp(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
+#define SBV(v, b) ((v) |= (b))
+#define CBV(v, b) ((v) &= ~(b))
+#define BTV(v, b) ((v) & (b))
+
 static const char *MODES[] = { "FirstPerson", "Front", "Placed" };
+
+GUI_t gGui = {0};
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
   HWND hWnd,
@@ -22,35 +29,45 @@ static void gui_wndProcEx(
   UINT *uBlock,
   void *lpUser
 ) {
-  GUI_t *gui = (GUI_t *)lpUser;
-  if (gui->isOpen) {
-    ImGuiIO &io = ImGui::GetIO();
+  if (!gGui.isOpen)
+    return;
 
-    ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
+  ImGuiIO &io = ImGui::GetIO();
 
-    if (
-      uMsg == WM_LBUTTONDOWN
-      || uMsg == WM_LBUTTONDBLCLK
-      || uMsg == WM_LBUTTONUP
-    )
+  ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
+
+  switch (uMsg) {
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONDBLCLK:
+    case WM_LBUTTONUP:
       *uBlock = io.WantCaptureMouse;
-    if (
-      uMsg == WM_KEYDOWN
-      || uMsg == WM_CHAR
-    ) {
-      if (gui->state.overrideMode == 1) {
-        *uBlock = gui->state.enable;
+      return;
+    case WM_KEYDOWN:
+      if (gGui.state.overrideMode == 1 && gGui.state.enable) {
+        if (
+          wParam == 'W'
+          || wParam == 'A'
+          || wParam == 'S'
+          || wParam == 'D'
+          || wParam == VK_SPACE
+          || wParam == VK_SHIFT
+        )
+          *uBlock = 1;
+        else 
+          *uBlock = io.WantCaptureKeyboard;
       } else
         *uBlock = io.WantCaptureKeyboard;
-    }
-    return;
+      return;
+    case WM_CHAR:
+      *uBlock = 1;
+      return;
   }
 
   *uBlock = 0;
 }
 
-i08 gui_init(GUI_t *gui) {
-  QueryPerformanceFrequency((LARGE_INTEGER *)&gui->performFreq);
+i08 gui_init() {
+  QueryPerformanceFrequency((LARGE_INTEGER *)&gGui.performFreq);
   D3D12Hooks::init(
     [](const DXGI_SWAP_CHAIN_DESC *sDesc, void *lpUser) -> void {
       f32 dpiScale;
@@ -80,13 +97,13 @@ i08 gui_init(GUI_t *gui) {
       InputHandler::init(
         UniHookGlobals::mainWindow,
         gui_wndProcEx,
-        lpUser
+        nullptr
       );
 
-      ((GUI_t *)lpUser)->hWnd = UniHookGlobals::mainWindow;
+      gGui.hWnd = UniHookGlobals::mainWindow;
     },
     [](void *lpUser) -> void {
-      (void)gui_update((GUI_t *)lpUser);
+      (void)gui_update();
     },
     [](void *lpUser) -> void {
       InputHandler::deinit(UniHookGlobals::mainWindow);
@@ -94,81 +111,77 @@ i08 gui_init(GUI_t *gui) {
       ImGui_ImplWin32_Shutdown();
       ImGui::DestroyContext();
     },
-    (void *)gui
+    nullptr
   );
 
   return 1;
 }
 
-i08 gui_deinit(GUI_t *gui) {
+i08 gui_deinit() {
   D3D12Hooks::deinit();
   return 1;
 }
 
-static inline void gui_subMenuSet(GUI_t *gui) {
+static inline void gui_subMenuSet() {
   ImGui::SeparatorText("Set Camera Params");
 
   // Camera position input.
-  ImGui::Checkbox("##cb1", (bool *)&gui->state.overridePos);
+  ImGui::Checkbox("##cb1", (bool *)&gGui.state.overridePos);
   ImGui::SameLine();
-  ImGui::InputFloat3("Pos", (float *)&gui->state.pos);
+  ImGui::InputFloat3("Pos", (float *)&gGui.state.pos);
 
   // Camera facing input.
-  ImGui::Checkbox("##cb2", (bool *)&gui->state.overrideDir);
+  ImGui::Checkbox("##cb2", (bool *)&gGui.state.overrideDir);
   ImGui::SameLine();
-  ImGui::InputFloat2("Facing", (float *)&gui->state.rot);
+  ImGui::InputFloat2("Facing", (float *)&gGui.state.rot);
 
   // Clamp camera facing.
-  gui->state.rot.x = fmodf(gui->state.rot.x, 360.0f);
-  gui->state.rot.y = clamp(gui->state.rot.y, -89.5f, 89.5f);
+  gGui.state.rot.x = fmodf(gGui.state.rot.x, 360.0f);
+  gGui.state.rot.y = clamp(gGui.state.rot.y, -89.5f, 89.5f);
 
   // Camera scale input.
-  ImGui::Checkbox("##cb3", (bool *)&gui->state.overrideScale);
+  ImGui::Checkbox("##cb3", (bool *)&gGui.state.overrideScale);
   ImGui::SameLine();
-  ImGui::DragFloat("Scale", &gui->state.scale, .01f, 0.0f, 1.0f);
+  ImGui::DragFloat("Scale", &gGui.state.scale, .01f, 0.0f, 1.0f);
 
   // Camera focus(blur) input.
-  ImGui::Checkbox("##cb4", (bool *)&gui->state.overrideFocus);
+  ImGui::Checkbox("##cb4", (bool *)&gGui.state.overrideFocus);
   ImGui::SameLine();
-  ImGui::DragFloat("Focus", &gui->state.focus, .01f, 0.0f, 1.0f);
+  ImGui::DragFloat("Focus", &gGui.state.focus, .01f, 0.0f, 1.0f);
 
   // Camera brightness input.
-  ImGui::Checkbox("##cb5", (bool *)&gui->state.overrideBrightness);
+  ImGui::Checkbox("##cb5", (bool *)&gGui.state.overrideBrightness);
   ImGui::SameLine();
-  ImGui::DragFloat("Brightness", &gui->state.brightness, .01f, 0.0f, 1.0f);
+  ImGui::DragFloat("Brightness", &gGui.state.brightness, .01f, 0.0f, 1.0f);
 }
 
-static inline void gui_subMenuFreecam(GUI_t *gui) {
+static inline void gui_subMenuFreecam() {
   ImGui::SeparatorText("Free camera");
-  ImGui::DragFloat("Speed", &gui->state.freecamSpeed, .01f, 0, 100.0f);
+  ImGui::DragFloat("Speed", &gGui.state.freecamSpeed, .01f, 0, 100.0f);
   if (ImGui::Button("Reset pos"))
-    gui->state.freecamReset = 1;
+    gGui.state.resetPosFlag = 1;
 
   if (ImGui::IsKeyDown(ImGuiKey_W))
     // Go foward.
-    gui->state.freecamDir = 1;
+    gGui.state.freecamDir = 1;
   else if (ImGui::IsKeyDown(ImGuiKey_A))
-    gui->state.freecamDir = 2;
+    gGui.state.freecamDir = 2;
   else
-    gui->state.freecamDir = 0;
+    gGui.state.freecamDir = 0;
 }
 
-i08 gui_update(GUI_t *gui) {
-  i64 qpc, inteval;
+static inline void gui_subMenuFPV() {
+  ImGui::SeparatorText("FPV");
+  if (ImGui::Button("Reset pos"))
+    gGui.state.resetPosFlag = 1;
+}
+
+i08 gui_update() {
   ImGuiIO &io = ImGui::GetIO();
   (void)io;
 
-  if (!gui->lastFrameCounter)
-    QueryPerformanceCounter((LARGE_INTEGER *)&gui->lastFrameCounter);
-  else {
-    QueryPerformanceCounter((LARGE_INTEGER *)&qpc);
-    inteval = qpc - gui->lastFrameCounter;
-    gui->lastFrameCounter = qpc;
-    gui->timeElapsedSecond = (f32)inteval / (f32)gui->performFreq;
-  }
-
   if (GetAsyncKeyState(VK_INSERT) & 0x1)
-    gui->isOpen = !gui->isOpen;
+    gGui.isOpen = !gGui.isOpen;
 
   ImGuiStyle &style = ImGui::GetStyle();
   style.ScrollbarRounding = 0.0f;
@@ -179,28 +192,31 @@ i08 gui_update(GUI_t *gui) {
   ImGui_ImplWin32_NewFrame();
   ImGui::NewFrame();
 
-  if (gui->isOpen) {
+  if (gGui.isOpen) {
     // Title.
     ImGui::Begin(
-      "SkyCamera configure",
+      "hSC Menu",
       nullptr,
       ImGuiWindowFlags_None
     );
 
     // General switch.
-    ImGui::Checkbox("Take over", (bool *)&gui->state.enable);
-    ImGui::Combo("Use mode", &gui->state.cameraMode, MODES, IM_ARRAYSIZE(MODES));
+    if (ImGui::Checkbox("Take over", (bool *)&gGui.state.enable))
+      gGui.state.resetPosFlag = 1;
+    ImGui::Combo("Use mode", &gGui.state.cameraMode, MODES, IM_ARRAYSIZE(MODES));
 
-    ImGui::RadioButton("Set", &gui->state.overrideMode, 0);
+    ImGui::RadioButton("Set", &gGui.state.overrideMode, 0);
     ImGui::SameLine();
-    ImGui::RadioButton("Freecam", &gui->state.overrideMode, 1);
+    ImGui::RadioButton("Freecam", &gGui.state.overrideMode, 1);
     ImGui::SameLine();
-    ImGui::RadioButton("FPV", &gui->state.overrideMode, 2);
+    ImGui::RadioButton("FPV", &gGui.state.overrideMode, 2);
 
-    if (gui->state.overrideMode == 0)
-      gui_subMenuSet(gui);
-    if (gui->state.overrideMode == 1)
-      gui_subMenuFreecam(gui);
+    if (gGui.state.overrideMode == 0)
+      gui_subMenuSet();
+    if (gGui.state.overrideMode == 1)
+      gui_subMenuFreecam();
+    if (gGui.state.overrideMode == 2)
+      gui_subMenuFPV();
 
     // Overlay window FPS display.
     ImGui::Text("Overlay %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
@@ -247,6 +263,6 @@ i08 gui_update(GUI_t *gui) {
   D3D12Hooks::gCommandQueue->ExecuteCommandLists(
     1,
     reinterpret_cast<ID3D12CommandList* const*>(&D3D12Hooks::gCommandList));
-  
+
   return 1;
 }

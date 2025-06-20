@@ -4,23 +4,51 @@
 #include "offsets.h"
 #include "types.h"
 #include "gui.h"
-
+#include "fpv.h"
 #include "hooked.h"
+#include "log.h"
 
 #define MH_SUCCESSED(v, s) ((v) |= (!(s)))
 #define OVERRIDE_2(cond, v1, v2) ((cond) ? ((v1) = (v2)) : ((v2) = (v1)))
 #define OVERRIDE_3(cond, v11, v12, v2) ((cond) ? ((v11) = ((v12) = (v2))) : ((v2) = (v11)))
 
-LPVOID origin_SkyCamera_update
+typedef u64 (__fastcall *FnSkyCamera_update)(SkyCamera *, u64);
+typedef u64 (__fastcall *FnSkyCamera__updateParams)(SkyCamera *, u64);
+typedef u64 (__fastcall *FnSkyCamera_updateUI)(
+  SkyCamera *, u64, u64, u64,f32 *,f32 *,f32 *, u64, i08);
+typedef u64 (__fastcall *FnWorld_interactionTest)(
+  u64, v4f *, v4f *, float, v4f *, i08 *);
+
+extern FPV_t fpv;
+extern GUI_t gGui;
+
+static const v4f gravity = {0.0f, -9.8f, 0.0f, 0.0f};
+static u64 savedContext = 0;
+static LPVOID origin_SkyCamera_update
   , origin_SkyCamera_updateUI
-  , origin_SkyCamera__updateParams;
-extern GUI_t gui;
+  , origin_SkyCamera__updateParams
+  , origin_World_interactionTest
+  , fn_World_interactionTest;
+
+static i08 fpvCheckCollision(
+  v4f *origin,
+  v4f *dir,
+  f32 len,
+  v4f *a5,
+  i08 *buf
+) {
+  if (savedContext && fn_World_interactionTest) {
+    return ((FnWorld_interactionTest)fn_World_interactionTest)(
+      savedContext, origin, dir, len, a5, buf);
+  } else
+    return 0;
+}
 
 static void updateCameraSet(SkyCamera *this) {
   v4f *pos, *dir;
   v2f *gsRot, rot;
 
-  if (!(this->cameraType == gui.state.cameraMode + 1))
+  if (!(this->cameraType == gGui.state.cameraMode + 1))
     return;
 
   pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
@@ -28,12 +56,12 @@ static void updateCameraSet(SkyCamera *this) {
 
   //((u64 (__fastcall *)(u64, v4f *))baseAddr + offset_Player_getPos)(this->player, &pp);
 
-  gsRot = &gui.state.rot;
+  gsRot = &gGui.state.rot;
 
   // Override coodinates or sync original camera pos to overlay.
-  OVERRIDE_2(gui.state.overridePos, *pos, gui.state.pos);
+  OVERRIDE_2(gGui.state.overridePos, *pos, gGui.state.pos);
 
-  if (gui.state.overrideDir) {
+  if (gGui.state.overrideDir) {
     // Override facing directions.
     rot.x = PI_F * gsRot->x / 180.0f;
     rot.y = PI_F * gsRot->y / 180.0f;
@@ -64,29 +92,62 @@ static void updateCameraSet(SkyCamera *this) {
   }
 
   // Override or sync camera params.
-  OVERRIDE_3(gui.state.overrideScale, this->scaleAnim, this->scale, gui.state.scale);
-  OVERRIDE_3(gui.state.overrideFocus, this->focusAnim, this->focus, gui.state.focus);
-  OVERRIDE_3(gui.state.overrideBrightness, this->brightnessAnim, this->brightness, gui.state.brightness);
+  OVERRIDE_3(
+    gGui.state.overrideScale,
+    this->scaleAnim,
+    this->scale,
+    gGui.state.scale);
+  OVERRIDE_3(
+    gGui.state.overrideFocus,
+    this->focusAnim,
+    this->focus,
+    gGui.state.focus);
+  OVERRIDE_3(
+    gGui.state.overrideBrightness,
+    this->brightnessAnim,
+    this->brightness,
+    gGui.state.brightness);
 }
 
 static void updateCameraFreecam(SkyCamera *this) {
   v4f *pos, *dir;
 
-  if (!(this->cameraType == gui.state.cameraMode + 1))
+  if (!(this->cameraType == gGui.state.cameraMode + 1))
     return;
 
   pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
   dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
   
-  if (gui.state.freecamReset) {
-    gui.state.pos = *pos;
-    gui.state.freecamReset = 0;
+  if (gGui.state.resetPosFlag) {
+    gGui.state.pos = *pos;
+    gGui.state.resetPosFlag = 0;
     return;
   }
 
-  if (gui.state.freecamDir == 1)
-    gui.state.pos = v4fadd(gui.state.pos, v4fscale(*dir, gui.state.freecamSpeed * gui.timeElapsedSecond));
-  *pos = gui.state.pos;
+  if (gGui.state.freecamDir == 1)
+    gGui.state.pos = v4fadd(
+      gGui.state.pos,
+      v4fscale(*dir, gGui.state.freecamSpeed * gGui.timeElapsedSecond));
+  *pos = gGui.state.pos;
+}
+
+static void updateCameraFPV(SkyCamera *this) {
+  v4f *pos;//, *dir;
+
+  if (!(this->cameraType == gGui.state.cameraMode + 1))
+    return;
+
+  pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
+  //dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
+
+  if (gGui.state.resetPosFlag) {
+    fpv_init(&fpv, fpvCheckCollision, *pos, gravity);
+    gGui.state.resetPosFlag = 0;
+  }
+
+  fpv_update(&fpv, gGui.timeElapsedSecond);
+
+  *pos = fpv.pos;
 }
 
 static u64 SkyCamera_update_Listener(SkyCamera *this, u64 context) {
@@ -100,24 +161,67 @@ static u64 SkyCamera_update_Listener(SkyCamera *this, u64 context) {
 
 static u64 SkyCamera__updateParams_Listener(SkyCamera *this, u64 context) {
   u64 result;
+  i64 qpc, inteval;
+  GUIState_t *guiState = &gGui.state;
 
   result = ((u64 (__fastcall *)(SkyCamera *, u64))origin_SkyCamera__updateParams)(this, context);
 
-  if (!gui.state.enable)
+  if (!guiState->enable)
     return result;
+  
+  // Calculate time elapsed since last frame.
+  if (!gGui.lastFrameCounter)
+    QueryPerformanceCounter((LARGE_INTEGER *)&gGui.lastFrameCounter);
+  else {
+    QueryPerformanceCounter((LARGE_INTEGER *)&qpc);
+    inteval = qpc - gGui.lastFrameCounter;
+    gGui.lastFrameCounter = qpc;
+    gGui.timeElapsedSecond = (f32)inteval / (f32)gGui.performFreq;
+  }
 
-  if (gui.state.overrideMode == 0) {
+  if (guiState->overrideMode == 0) {
     updateCameraSet(this);
-  } else if (gui.state.overrideMode == 1) {
+  } else if (guiState->overrideMode == 1) {
     updateCameraFreecam(this);
+  } else if (guiState->overrideMode == 2) {
+    updateCameraFPV(this);
   }
 
   return result;
 }
 
-static u64 SkyCamera_updateUI_Listener(SkyCamera *this, u64 a2, u64 a3, u64 a4, f32 *scale, f32 *focus, f32 *brightness, u64 a8, i08 a9) {
+static u64 SkyCamera_updateUI_Listener(
+  SkyCamera *this,
+  u64 a2,
+  u64 a3,
+  u64 a4,
+  f32 *scale,
+  f32 *focus,
+  f32 *brightness,
+  u64 a8,
+  i08 a9
+) {
+  u64 result = 0;
+  result = ((FnSkyCamera_updateUI)origin_SkyCamera_updateUI)(
+    this, a2, a3, a4, scale, focus, brightness, a8, a9);
+  return result;
+}
+
+static u64 World_interactionTest_Listener(
+  u64 a1,
+  v4f *origin,
+  v4f *direction,
+  float a4,
+  v4f *a5,
+  i08 *a6
+) {
   u64 result;
-  result = ((u64 (__fastcall *)(SkyCamera *, u64, u64, u64, f32 *, f32 *, f32 *, u64, i08))origin_SkyCamera_updateUI)(this, a2, a3, a4, scale, focus, brightness, a8, a9);
+  if (!savedContext) {
+    savedContext = a1;
+    LOGI("[HT_INFO] World::interactionTest(): context: %p\n", (void *)savedContext);
+  }
+  result = ((FnWorld_interactionTest)origin_World_interactionTest)(
+    a1, origin, direction, a4, a5, a6);
   return result;
 }
 
@@ -125,11 +229,29 @@ i08 createAllHooks(void *baseAddr) {
   MH_STATUS s;
   i08 r = 0;
 
-  s = MH_CreateHook(baseAddr + offset_SkyCamera_update, SkyCamera_update_Listener, &origin_SkyCamera_update);
+  s = MH_CreateHook(
+    baseAddr + offset_SkyCamera_update,
+    SkyCamera_update_Listener,
+    &origin_SkyCamera_update);
   MH_SUCCESSED(r, s);
-  s = MH_CreateHook(baseAddr + offset_SkyCamera_updateUI, SkyCamera_updateUI_Listener, &origin_SkyCamera_updateUI);
+
+  s = MH_CreateHook(
+    baseAddr + offset_SkyCamera_updateUI,
+    SkyCamera_updateUI_Listener,
+    &origin_SkyCamera_updateUI);
   MH_SUCCESSED(r, s);
-  s = MH_CreateHook(baseAddr + offset_SkyCamera__updateParams, SkyCamera__updateParams_Listener, &origin_SkyCamera__updateParams);
+
+  s = MH_CreateHook(
+    baseAddr + offset_SkyCamera__updateParams,
+    SkyCamera__updateParams_Listener,
+    &origin_SkyCamera__updateParams);
+  MH_SUCCESSED(r, s);
+
+  fn_World_interactionTest = baseAddr + offset_World_interactionTest;
+  s = MH_CreateHook(
+    fn_World_interactionTest,
+    World_interactionTest_Listener,
+    &origin_World_interactionTest);
   MH_SUCCESSED(r, s);
 
   return !s;

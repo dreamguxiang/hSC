@@ -1,4 +1,4 @@
-MAKEFLAGS += -s -j4
+MAKEFLAGS += -s -j6
 
 DIST_DIR = ./dist
 SRC_DIR = ./src
@@ -14,7 +14,7 @@ BIN_TARGET = $(DIST_DIR)/$(TARGET)
 CC = gcc
 CXX = g++
 
-CFLAGS = -Wall -Werror -Wformat -g -O3 -ffunction-sections -fdata-sections -Wl,--gc-sections -static -flto -s -mavx
+CFLAGS = -Wall -Wformat -g -O3 -ffunction-sections -fdata-sections -Wl,--gc-sections -static -flto -s -mavx
 # Include ImGui.
 CFLAGS += -I./libraries/imgui-1.91.9b -I./libraries/imgui-1.91.9b/backends
 # Include MinHook.

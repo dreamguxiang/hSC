@@ -2,13 +2,11 @@
 #define __GUI_H__
 
 #include <windows.h>
-#include <d3d9.h>
 
 #include "vector.h"
 #include "aliases.h"
 
 #define WM_USER_EXIT (0x8000 + 1)
-#define clamp(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,7 +34,7 @@ typedef struct {
 
   f32 freecamSpeed;
   i32 freecamDir;
-  i08 freecamReset;
+  i08 resetPosFlag;
 } GUIState_t;
 
 typedef struct {
@@ -49,9 +47,9 @@ typedef struct {
   i08 isOpen;
 } GUI_t;
 
-i08 gui_init(GUI_t *gui);
-i08 gui_deinit(GUI_t *gui);
-i08 gui_update(GUI_t *gui);
+i08 gui_init();
+i08 gui_deinit();
+i08 gui_update();
 
 #ifdef __cplusplus
 }
