@@ -54,10 +54,11 @@ static inline v4f v4fadd(v4f a, v4f b);
 static inline v4f v4fsub(v4f a, v4f b);
 static inline v4f v4fmul(v4f a, v4f b);
 static inline v4f v4fdiv(v4f a, v4f b);
-static inline f32 v4fdot(v4f a, v4f b);
 static inline v4f v4fscale(v4f a, f32 s);
 static inline v4f v4fnormalize(v4f a);
-static inline float v4flen(v4f a);
+static inline v4f v4freflect(v4f n, v4f i);
+static inline f32 v4fdot(v4f a, v4f b);
+static inline f32 v4flen(v4f a);
 
 /**
  * Add b to a.
@@ -156,7 +157,7 @@ static inline v4f v4fscale(v4f a, f32 s) {
 
   v1 = _mm_loadu_ps((float *)&a);
 
-  v2 = _mm_broadcast_ss(&s);
+  v2 = _mm_set1_ps(s);
   v1 = _mm_mul_ps(v1, v2);
 
   _mm_storeu_ps((float *)&r, v1);
@@ -180,6 +181,33 @@ static inline v4f v4fnormalize(v4f a) {
 }
 
 /**
+ * Calculate reflection vector.
+ * 
+ * @param n Normalize vector.
+ * @param i Incident vector.
+ */
+v4f v4freflect(v4f n, v4f i) {
+  __m128 v1, v2, v3;
+  v4f r;
+
+  n = v4fnormalize(n);
+  v1 = _mm_loadu_ps((float *)&n);
+  v2 = _mm_loadu_ps((float *)&i);
+
+  // dot(i, n)
+  v3 = _mm_dp_ps(v1, v2, 0xFF);
+  // 2.0f * dot(i, n)
+  v3 = _mm_mul_ps(v3, _mm_set1_ps(2.0f));
+  // scale * n
+  v3 = _mm_mul_ps(v3, v1);
+  // i - scaled_n
+  v3 = _mm_sub_ps(v2, v3);
+
+  _mm_storeu_ps((float *)&r, v3);
+  return r;
+}
+
+/**
  * Calculate the dot product of vector a and b.
  * 
  * @param a
@@ -192,11 +220,7 @@ static inline f32 v4fdot(v4f a, v4f b) {
   v1 = _mm_loadu_ps((float *)&a);
   v2 = _mm_loadu_ps((float *)&b);
 
-  v1 = _mm_mul_ps(v1, v2);
-  v2 = _mm_movehdup_ps(v1);
-  v2 = _mm_add_ps(v1, v2);
-  v1 = (__m128)_mm_permute_pd((__m128d)v2, 1);
-  v1 = _mm_add_ss(v1, v2);
+  v1 = _mm_dp_ps(v1, v2, 0xFF);
 
   return _mm_cvtss_f32(v1);
 }

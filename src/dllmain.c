@@ -1,7 +1,6 @@
 #include "dllmain.h"
 
 LPVOID baseAddr;
-FPV_t fpv = {0};
 
 static DWORD WINAPI onAttach(LPVOID lpParam) {
   MSG msg;
@@ -54,8 +53,7 @@ BOOL APIENTRY DllMain(
       onAttach,
       (LPVOID)hModule,
       0,
-      &threadId
-    );
+      &threadId);
     if (!hSubThread)
       return TRUE;
     LOGI("[HT-INFO] CreateThread(): 0x%lX\n", threadId);

@@ -35,6 +35,7 @@ LFLAGS += -L./libraries/UGLHook -luglhook
 $(BIN_TARGET): $(C_OBJ) $(CPP_OBJ)
 	@echo Linking ...
 	@$(CXX) $(CFLAGS) $^ -shared -o $@ $(LFLAGS)
+	@echo Done.
 
 $(DIST_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo Compiling $< ...

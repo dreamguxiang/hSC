@@ -29,9 +29,6 @@ static void gui_wndProcEx(
   UINT *uBlock,
   void *lpUser
 ) {
-  if (!gGui.isOpen)
-    return;
-
   ImGuiIO &io = ImGui::GetIO();
 
   ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
@@ -122,6 +119,18 @@ i08 gui_deinit() {
   return 1;
 }
 
+static inline void gui_displayTips(i08 sameLine, const char *desc) {
+  if (sameLine)
+    ImGui::SameLine();
+  ImGui::TextDisabled("(?)");
+  if (ImGui::BeginItemTooltip()) {
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+    ImGui::TextUnformatted(desc);
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
+  }
+}
+
 static inline void gui_subMenuSet() {
   ImGui::SeparatorText("Set Camera Params");
 
@@ -160,7 +169,18 @@ static inline void gui_subMenuFreecam() {
   ImGui::DragFloat("Speed", &gGui.state.freecamSpeed, .01f, 0, 100.0f);
   if (ImGui::Button("Reset pos"))
     gGui.state.resetPosFlag = 1;
+}
 
+static inline void gui_subMenuFPV() {
+  ImGui::SeparatorText("FPV");
+  if (ImGui::Button("Reset pos"))
+    gGui.state.resetPosFlag = 1;
+}
+
+/**
+ * Handle keyboard input for freecam mode.
+ */
+static void gui_keyboardFreecam() {
   if (ImGui::IsKeyDown(ImGuiKey_W))
     // Go foward.
     gGui.state.freecamDir = 1;
@@ -170,12 +190,9 @@ static inline void gui_subMenuFreecam() {
     gGui.state.freecamDir = 0;
 }
 
-static inline void gui_subMenuFPV() {
-  ImGui::SeparatorText("FPV");
-  if (ImGui::Button("Reset pos"))
-    gGui.state.resetPosFlag = 1;
-}
-
+/**
+ * Render ui and handle keyboard inputs.
+ */
 i08 gui_update() {
   ImGuiIO &io = ImGui::GetIO();
   (void)io;
@@ -192,6 +209,7 @@ i08 gui_update() {
   ImGui_ImplWin32_NewFrame();
   ImGui::NewFrame();
 
+  // Draw menus.
   if (gGui.isOpen) {
     // Title.
     ImGui::Begin(
@@ -200,10 +218,14 @@ i08 gui_update() {
       ImGuiWindowFlags_None
     );
 
-    // General switch.
+    // General options.
     if (ImGui::Checkbox("Take over", (bool *)&gGui.state.enable))
       gGui.state.resetPosFlag = 1;
     ImGui::Combo("Use mode", &gGui.state.cameraMode, MODES, IM_ARRAYSIZE(MODES));
+    ImGui::Checkbox("No UI", (bool *)&gGui.state.noOriginalUi);
+    gui_displayTips(
+      true,
+      "Please adjust the parameters before select this item.");
 
     ImGui::RadioButton("Set", &gGui.state.overrideMode, 0);
     ImGui::SameLine();
@@ -223,6 +245,10 @@ i08 gui_update() {
 
     ImGui::End();
   }
+
+  // Handle keyboard input.
+  if (gGui.state.overrideMode == 1)
+    gui_keyboardFreecam();
 
   // Rendering.
   ImGui::EndFrame();

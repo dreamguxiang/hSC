@@ -22,11 +22,13 @@ typedef u64 (__fastcall *FnWorld_interactionTest)(
   u64, v4f *, v4f *, float, v4f *, i08 *);
 
 // External variables.
-extern FPV_t fpv;
+// gFpv defined in fpv.c
+extern FPV_t gFpv;
+// gGui defined in gui.cpp
 extern GUI_t gGui;
 
 // Static variables.
-static const v4f gravity = {0.0f, -9.8f, 0.0f, 0.0f};
+static const v4f gravity = {-9.8f, 0.0f, 0.0f, 0.0f};
 static u64 savedContext = 0;
 static LPVOID origin_SkyCamera_update
   , origin_SkyCamera_updateUI
@@ -143,20 +145,20 @@ static void updateCameraFreecam(SkyCamera *this) {
 static void updateCameraFPV(SkyCamera *this) {
   v4f *pos;//, *dir;
 
-  if (!(this->cameraType == gGui.state.cameraMode + 1))
+  if (this->cameraType != gGui.state.cameraMode + 1)
     return;
 
   pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
   //dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
 
   if (gGui.state.resetPosFlag) {
-    fpv_init(&fpv, fpvCheckCollision, *pos, gravity);
+    fpv_init(fpvCheckCollision, *pos, gravity);
     gGui.state.resetPosFlag = 0;
   }
 
-  fpv_update(&fpv, gGui.timeElapsedSecond);
+  fpv_update(gGui.timeElapsedSecond);
 
-  *pos = fpv.pos;
+  *pos = gFpv.pos;
 }
 
 /**
@@ -226,7 +228,10 @@ static u64 SkyCamera_updateUI_Listener(
   u64 a8,
   i08 a9
 ) {
-  u64 result = 0;
+  u64 result;
+  if (gGui.state.noOriginalUi)
+    // Disable original camera ui.
+    return 0;
   result = ((FnSkyCamera_updateUI)origin_SkyCamera_updateUI)(
     this, a2, a3, a4, scale, focus, brightness, a8, a9);
   return result;

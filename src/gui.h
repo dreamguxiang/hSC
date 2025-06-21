@@ -15,6 +15,7 @@ extern "C" {
 typedef struct {
   // General controller.
   i08 enable;
+  i08 noOriginalUi;
   i32 cameraMode;
   i32 overrideMode;
 

@@ -1,15 +1,16 @@
 #include "vector.h"
 #include "aliases.h"
 
-typedef i08 (__fastcall *InterractionCheckFn)(
-  v4f *,
-  v4f *,
-  f32,
-  v4f *,
-  i08 *);
+typedef struct {
+  v4f intersection;
+  v4f normalize;
+  i08 unk[0x40];
+} InteractionResult;
+typedef i08 (__fastcall *InteractionCheckFn)(
+  v4f *, v4f *, f32, v4f *, i08 *);
 
 typedef struct {
-  InterractionCheckFn check;
+  InteractionCheckFn check;
 
   // Movement.
   v4f pos;
@@ -28,10 +29,9 @@ typedef struct {
 } FPV_t;
 
 FPV_t *fpv_init(
-  FPV_t *fpv,
-  InterractionCheckFn fn,
+  InteractionCheckFn fn,
   v4f pos,
   v4f gravity
 );
-FPV_t *fpv_input(FPV_t *fpv);
-FPV_t *fpv_update(FPV_t *fpv, f32 timeElapsed);
+FPV_t *fpv_input();
+FPV_t *fpv_update(f32 timeElapsed);
