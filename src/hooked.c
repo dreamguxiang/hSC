@@ -8,20 +8,24 @@
 #include "hooked.h"
 #include "log.h"
 
+// Defines.
 #define MH_SUCCESSED(v, s) ((v) |= (!(s)))
 #define OVERRIDE_2(cond, v1, v2) ((cond) ? ((v1) = (v2)) : ((v2) = (v1)))
 #define OVERRIDE_3(cond, v11, v12, v2) ((cond) ? ((v11) = ((v12) = (v2))) : ((v2) = (v11)))
 
+// Typedefs.
 typedef u64 (__fastcall *FnSkyCamera_update)(SkyCamera *, u64);
 typedef u64 (__fastcall *FnSkyCamera__updateParams)(SkyCamera *, u64);
 typedef u64 (__fastcall *FnSkyCamera_updateUI)(
-  SkyCamera *, u64, u64, u64,f32 *,f32 *,f32 *, u64, i08);
+  SkyCamera *, u64, u64, u64, f32 *, f32 *, f32 *, u64, i08);
 typedef u64 (__fastcall *FnWorld_interactionTest)(
   u64, v4f *, v4f *, float, v4f *, i08 *);
 
+// External variables.
 extern FPV_t fpv;
 extern GUI_t gGui;
 
+// Static variables.
 static const v4f gravity = {0.0f, -9.8f, 0.0f, 0.0f};
 static u64 savedContext = 0;
 static LPVOID origin_SkyCamera_update
@@ -30,6 +34,11 @@ static LPVOID origin_SkyCamera_update
   , origin_World_interactionTest
   , fn_World_interactionTest;
 
+/**
+ * Encapsulation for invocations of World::interactionCheck().
+ * 
+ * No need to explicitly pass in the context parameter.
+ */
 static i08 fpvCheckCollision(
   v4f *origin,
   v4f *dir,
@@ -150,21 +159,32 @@ static void updateCameraFPV(SkyCamera *this) {
   *pos = fpv.pos;
 }
 
+/**
+ * Detour function for SkyCamera::update().
+ * 
+ * This is the main update function of the camera prop.
+ */
 static u64 SkyCamera_update_Listener(SkyCamera *this, u64 context) {
   u64 result;
   // NOTE: We should NOT save the SkyCamera *this variable due to it may vary
-  // whenever. Every frame the update should be presented only by the detour
-  // function.
-  result = ((u64 (__fastcall *)(SkyCamera *, u64))origin_SkyCamera_update)(this, context);
+  // whenever. Every frame the update should be presented in the detour
+  // function only.
+  result = ((FnSkyCamera_update)origin_SkyCamera_update)(this, context);
   return result;
 }
 
+/**
+ * Detour function for SkyCamera::_updateParams().
+ * 
+ * The original function calculates the camera position and facing direction.
+ */
 static u64 SkyCamera__updateParams_Listener(SkyCamera *this, u64 context) {
   u64 result;
   i64 qpc, inteval;
   GUIState_t *guiState = &gGui.state;
 
-  result = ((u64 (__fastcall *)(SkyCamera *, u64))origin_SkyCamera__updateParams)(this, context);
+  result = ((FnSkyCamera__updateParams)origin_SkyCamera__updateParams)(
+    this, context);
 
   if (!guiState->enable)
     return result;
@@ -190,6 +210,11 @@ static u64 SkyCamera__updateParams_Listener(SkyCamera *this, u64 context) {
   return result;
 }
 
+/**
+ * Detour function for SkyCamera::updateUi().
+ * 
+ * The original function renders the camera UI on the screen.
+ */
 static u64 SkyCamera_updateUI_Listener(
   SkyCamera *this,
   u64 a2,
@@ -207,6 +232,14 @@ static u64 SkyCamera_updateUI_Listener(
   return result;
 }
 
+/**
+ * Detour function for World::interactionCheck().
+ * 
+ * The original function is executing the interaction check for a line and
+ * current level.
+ * 
+ * Param a5 and a6 is missed when use IDA to decompile.
+ */
 static u64 World_interactionTest_Listener(
   u64 a1,
   v4f *origin,
@@ -216,7 +249,8 @@ static u64 World_interactionTest_Listener(
   i08 *a6
 ) {
   u64 result;
-  if (!savedContext) {
+  if (savedContext != a1) {
+    // Save pointer to current context.
     savedContext = a1;
     LOGI("[HT_INFO] World::interactionTest(): context: %p\n", (void *)savedContext);
   }
@@ -225,6 +259,9 @@ static u64 World_interactionTest_Listener(
   return result;
 }
 
+/**
+ * Hook all the functions that we need.
+ */
 i08 createAllHooks(void *baseAddr) {
   MH_STATUS s;
   i08 r = 0;
