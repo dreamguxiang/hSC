@@ -19,6 +19,10 @@ typedef struct {
   i32 cameraMode;
   i32 overrideMode;
 
+  // Inputs.
+  v4f movementInput;
+  v4f facingInput;
+
   // Original data sync.
   v4f pos;
   v2f rot;
@@ -34,7 +38,7 @@ typedef struct {
   i08 overrideBrightness;
 
   f32 freecamSpeed;
-  i32 freecamDir;
+  i08 freecamAxial;
   i08 resetPosFlag;
 } GUIState_t;
 

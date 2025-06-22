@@ -166,6 +166,10 @@ static inline void gui_subMenuSet() {
 
 static inline void gui_subMenuFreecam() {
   ImGui::SeparatorText("Free camera");
+  ImGui::Checkbox("Axial", (bool *)&gGui.state.freecamAxial);
+  gui_displayTips(
+    true,
+    "The camera won't move based on orientation when enabled this.");
   ImGui::DragFloat("Speed", &gGui.state.freecamSpeed, .01f, 0, 100.0f);
   if (ImGui::Button("Reset pos"))
     gGui.state.resetPosFlag = 1;
@@ -181,13 +185,22 @@ static inline void gui_subMenuFPV() {
  * Handle keyboard input for freecam mode.
  */
 static void gui_keyboardFreecam() {
+  v4f r = v4fnew(0.0f, 0.0f, 0.0f, 0.0f);
+
   if (ImGui::IsKeyDown(ImGuiKey_W))
-    // Go foward.
-    gGui.state.freecamDir = 1;
-  else if (ImGui::IsKeyDown(ImGuiKey_A))
-    gGui.state.freecamDir = 2;
-  else
-    gGui.state.freecamDir = 0;
+    r.z += 1.0f;
+  if (ImGui::IsKeyDown(ImGuiKey_A))
+    r.x += 1.0f;
+  if (ImGui::IsKeyDown(ImGuiKey_S))
+    r.z -= 1.0f;
+  if (ImGui::IsKeyDown(ImGuiKey_D))
+    r.x -= 1.0f;
+  if (ImGui::IsKeyDown(ImGuiKey_Space))
+    r.y += 1.0f;
+  if (ImGui::IsKeyDown(ImGuiKey_LeftShift))
+    r.y -= 1.0f;
+  
+  gGui.state.movementInput = v4fnormalize(r);
 }
 
 /**

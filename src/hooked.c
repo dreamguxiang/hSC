@@ -121,24 +121,45 @@ static void updateCameraSet(SkyCamera *this) {
 }
 
 static void updateCameraFreecam(SkyCamera *this) {
-  v4f *pos, *dir;
+  v4f *pos, *dir
+    , delta;
+  v2f tmp;
 
   if (!(this->cameraType == gGui.state.cameraMode + 1))
     return;
 
   pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
   dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
-  
+
   if (gGui.state.resetPosFlag) {
     gGui.state.pos = *pos;
     gGui.state.resetPosFlag = 0;
     return;
   }
 
-  if (gGui.state.freecamDir == 1)
-    gGui.state.pos = v4fadd(
-      gGui.state.pos,
-      v4fscale(*dir, gGui.state.freecamSpeed * gGui.timeElapsedSecond));
+  // Calculte the direction vector parallel to xOz plane.
+  tmp.x = sinf(this->rotateXAnim);
+  tmp.y = cosf(this->rotateXAnim);
+
+  if (gGui.state.freecamAxial) {
+    // Rotate it by the movement input.
+    delta.x = tmp.x * gGui.state.movementInput.z + tmp.y * gGui.state.movementInput.x;
+    delta.y = gGui.state.movementInput.y;
+    delta.z = tmp.y * gGui.state.movementInput.z - tmp.x * gGui.state.movementInput.x;
+  } else {
+    // Combine forward vector and left vector.
+    delta = v4fnew(
+      gGui.state.movementInput.x * +tmp.y,
+      gGui.state.movementInput.y,
+      gGui.state.movementInput.x * -tmp.x,
+      0.0f);
+    delta = v4fadd(delta, v4fscale(*dir, gGui.state.movementInput.z));
+  }
+
+  // Multiply by speed.
+  gGui.state.pos = v4fadd(
+    gGui.state.pos,
+    v4fscale(delta, gGui.state.freecamSpeed * gGui.timeElapsedSecond));
   *pos = gGui.state.pos;
 }
 
@@ -201,13 +222,12 @@ static u64 SkyCamera__updateParams_Listener(SkyCamera *this, u64 context) {
     gGui.timeElapsedSecond = (f32)inteval / (f32)gGui.performFreq;
   }
 
-  if (guiState->overrideMode == 0) {
+  if (guiState->overrideMode == 0)
     updateCameraSet(this);
-  } else if (guiState->overrideMode == 1) {
+  else if (guiState->overrideMode == 1)
     updateCameraFreecam(this);
-  } else if (guiState->overrideMode == 2) {
+  else if (guiState->overrideMode == 2)
     updateCameraFPV(this);
-  }
 
   return result;
 }

@@ -8,7 +8,7 @@ CPP_SRC = $(wildcard $(SRC_DIR)/*.cpp)
 C_OBJ = $(patsubst %.c, $(DIST_DIR)/%.o, $(notdir $(C_SRC)))
 CPP_OBJ = $(patsubst %.cpp, $(DIST_DIR)/%.o, $(notdir $(CPP_SRC)))
 
-TARGET = skyre-hookcamera.dll
+TARGET = hsc-main.dll
 BIN_TARGET = $(DIST_DIR)/$(TARGET)
 
 CC = gcc

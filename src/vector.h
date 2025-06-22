@@ -50,6 +50,7 @@ typedef struct {
 
 static const v4f V4FZERO = {0};
 
+static inline v4f v4fnew(f32 x, f32 y, f32 z, f32 w);
 static inline v4f v4fadd(v4f a, v4f b);
 static inline v4f v4fsub(v4f a, v4f b);
 static inline v4f v4fmul(v4f a, v4f b);
@@ -59,6 +60,17 @@ static inline v4f v4fnormalize(v4f a);
 static inline v4f v4freflect(v4f n, v4f i);
 static inline f32 v4fdot(v4f a, v4f b);
 static inline f32 v4flen(v4f a);
+
+static inline v4f v4fnew(f32 x, f32 y, f32 z, f32 w) {
+  v4f r;
+
+  r.x = x;
+  r.y = y;
+  r.z = z;
+  r.w = w;
+
+  return r;
+}
 
 /**
  * Add b to a.
