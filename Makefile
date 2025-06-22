@@ -7,6 +7,7 @@ C_SRC = $(wildcard $(SRC_DIR)/*.c)
 CPP_SRC = $(wildcard $(SRC_DIR)/*.cpp)
 C_OBJ = $(patsubst %.c, $(DIST_DIR)/%.o, $(notdir $(C_SRC)))
 CPP_OBJ = $(patsubst %.cpp, $(DIST_DIR)/%.o, $(notdir $(CPP_SRC)))
+VERSION_SCRIPT = $(SRC_DIR)/exports.txt
 
 TARGET = hsc-main.dll
 BIN_TARGET = $(DIST_DIR)/$(TARGET)
@@ -14,7 +15,8 @@ BIN_TARGET = $(DIST_DIR)/$(TARGET)
 CC = gcc
 CXX = g++
 
-CFLAGS = -Wall -Wformat -g -O3 -ffunction-sections -fdata-sections -Wl,--gc-sections -static -flto -s -mavx
+CFLAGS = -Wall -Wformat -O3 -ffunction-sections -fdata-sections -static -flto -s -mavx
+CFLAGS += -Wl,--gc-sections,--version-script=$(VERSION_SCRIPT)
 # Include ImGui.
 CFLAGS += -I./libraries/imgui-1.91.9b -I./libraries/imgui-1.91.9b/backends
 # Include MinHook.
