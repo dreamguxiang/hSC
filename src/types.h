@@ -60,4 +60,21 @@ typedef struct {
   i08 unk_8_3[5];
 } SkyCamera;
 
+// The size of this struct is incorrect. This definition only contains 
+// components what we need.
+typedef struct {
+  u64 lpVtbl;
+  char unk_1[56];
+  v4f mat1;
+  v4f mat2;
+  v4f mat3;
+  v4f pos;
+} RenderCamera;
+
+typedef struct {
+  v4f intersection;
+  v4f normalize;
+  i08 unk[0x40];
+} InteractionResult;
+
 #endif

@@ -198,7 +198,7 @@ static inline v4f v4fnormalize(v4f a) {
  * @param n Normalize vector.
  * @param i Incident vector.
  */
-v4f v4freflect(v4f n, v4f i) {
+static inline v4f v4freflect(v4f n, v4f i) {
   __m128 v1, v2, v3;
   v4f r;
 

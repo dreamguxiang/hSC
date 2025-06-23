@@ -170,6 +170,7 @@ static inline void gui_subMenuFreecam() {
   gui_displayTips(
     true,
     "The camera won't move based on orientation when enabled this.");
+  ImGui::Checkbox("Check collision", (bool *)&gGui.state.freecamCollision);
   ImGui::DragFloat("Speed", &gGui.state.freecamSpeed, .01f, 0, 100.0f);
   if (ImGui::Button("Reset pos"))
     gGui.state.resetPosFlag = 1;
@@ -199,7 +200,7 @@ static void gui_keyboardFreecam() {
     r.y += 1.0f;
   if (ImGui::IsKeyDown(ImGuiKey_LeftShift))
     r.y -= 1.0f;
-  
+
   gGui.state.movementInput = v4fnormalize(r);
 }
 

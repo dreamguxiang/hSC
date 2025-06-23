@@ -7,7 +7,7 @@ static DWORD WINAPI onAttach(LPVOID lpParam) {
   i32 s;
 
   s = gui_init();
-  LOGI("[HT-INFO] gui_init(): %d\n", s);
+  LOGI("gui_init(): %d\n", s);
 
   while (GetMessageW(&msg, NULL, 0, 0)) {
     if (msg.message == WM_USER_EXIT)
@@ -39,13 +39,13 @@ BOOL APIENTRY DllMain(
 
     recreateConsole();
 
-    LOGI("[HT-INFO] Dll injected.\n");
-    LOGI("[HT-INFO] (Sky.exe + 0x0): 0x%p\n", baseAddr);
+    LOGI("Dll injected.\n");
+    LOGI("(Sky.exe + 0x0): 0x%p\n", baseAddr);
 
     MH_Initialize();
     createAllHooks(baseAddr);
     s = MH_EnableHook(MH_ALL_HOOKS);
-    LOGI("[HT-INFO] MH_EnableHook(): %d\n", s);
+    LOGI("MH_EnableHook(): %d\n", s);
 
     hSubThread = CreateThread(
       NULL,
@@ -56,7 +56,7 @@ BOOL APIENTRY DllMain(
       &threadId);
     if (!hSubThread)
       return TRUE;
-    LOGI("[HT-INFO] CreateThread(): 0x%lX\n", threadId);
+    LOGI("CreateThread(): 0x%lX\n", threadId);
   } else if (dwReason == DLL_PROCESS_DETACH) {
     PostThreadMessageW(threadId, WM_USER_EXIT, 0, 0);
     WaitForSingleObject(hSubThread, INFINITE);

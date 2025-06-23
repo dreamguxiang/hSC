@@ -39,6 +39,7 @@ typedef struct {
 
   f32 freecamSpeed;
   i08 freecamAxial;
+  i08 freecamCollision;
   i08 resetPosFlag;
 } GUIState_t;
 

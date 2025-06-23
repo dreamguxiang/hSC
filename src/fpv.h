@@ -1,11 +1,7 @@
 #include "vector.h"
 #include "aliases.h"
+#include "types.h"
 
-typedef struct {
-  v4f intersection;
-  v4f normalize;
-  i08 unk[0x40];
-} InteractionResult;
 typedef i08 (__fastcall *InteractionCheckFn)(
   v4f *, v4f *, f32, v4f *, i08 *);
 

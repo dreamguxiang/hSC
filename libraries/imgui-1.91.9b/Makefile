@@ -1,7 +1,7 @@
 CXX = g++
 AR = ar
 
-CFLAGS = -std=c++11 -g -Wall -Wformat -I. -I./backends
+CFLAGS = -std=c++11 -g -Wall -Wformat -I. -I./backends -DNDEBUG
 
 all: libimgui.a libimgui_impl_win32.a libimgui_impl_dx11.a libimgui_impl_opengl3.a libimgui_impl_dx9.a libimgui_impl_dx12.a libimgui_demo.a
 

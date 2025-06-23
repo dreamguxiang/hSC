@@ -34,12 +34,15 @@ static LPVOID origin_SkyCamera_update
   , origin_SkyCamera_updateUI
   , origin_SkyCamera__updateParams
   , origin_World_interactionTest
+  // The pointer passed into this function must be a local variable address.
   , fn_World_interactionTest;
 
 /**
  * Encapsulation for invocations of World::interactionCheck().
  * 
  * No need to explicitly pass in the context parameter.
+ * 
+ * The pointer passed into this function must be a local variable address.
  */
 static i08 fpvCheckCollision(
   v4f *origin,
@@ -122,8 +125,9 @@ static void updateCameraSet(SkyCamera *this) {
 
 static void updateCameraFreecam(SkyCamera *this) {
   v4f *pos, *dir
-    , delta;
+    , lastPos, delta;
   v2f tmp;
+  InteractionResult ir;
 
   if (!(this->cameraType == gGui.state.cameraMode + 1))
     return;
@@ -138,6 +142,7 @@ static void updateCameraFreecam(SkyCamera *this) {
   }
 
   // Calculte the direction vector parallel to xOz plane.
+  lastPos = gGui.state.pos;
   tmp.x = sinf(this->rotateXAnim);
   tmp.y = cosf(this->rotateXAnim);
 
@@ -155,11 +160,23 @@ static void updateCameraFreecam(SkyCamera *this) {
       0.0f);
     delta = v4fadd(delta, v4fscale(*dir, gGui.state.movementInput.z));
   }
+  delta = v4fscale(delta, gGui.state.freecamSpeed * gGui.timeElapsedSecond);
+
+  if (
+    gGui.state.freecamCollision
+    && fpvCheckCollision(
+      &lastPos,
+      &delta,
+      v4flen(delta),
+      NULL,
+      (i08 *)&ir)
+  )
+    delta = v4fnew(0, 0, 0, 0);
 
   // Multiply by speed.
   gGui.state.pos = v4fadd(
-    gGui.state.pos,
-    v4fscale(delta, gGui.state.freecamSpeed * gGui.timeElapsedSecond));
+    lastPos,
+    delta);
   *pos = gGui.state.pos;
 }
 
@@ -277,11 +294,24 @@ static u64 World_interactionTest_Listener(
   if (savedContext != a1) {
     // Save pointer to current context.
     savedContext = a1;
-    LOGI("[HT_INFO] World::interactionTest(): context: %p\n", (void *)savedContext);
+    LOGI("World::interactionTest(): context: %p\n", (void *)savedContext);
   }
   result = ((FnWorld_interactionTest)origin_World_interactionTest)(
     a1, origin, direction, a4, a5, a6);
   return result;
+}
+
+/**
+ * Detour function for RenderCamera::update().
+ * 
+ * The original function updates the camera for rendering a frame. The detour
+ * function modifies the rotation matrix of the render camera.
+ */
+static u64 RenderCamera_update_Listener(
+  RenderCamera *this,
+  u64 *context
+) {
+  return 0;
 }
 
 /**
