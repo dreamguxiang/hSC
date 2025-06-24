@@ -69,7 +69,7 @@ typedef struct {
   v4f mat2;
   v4f mat3;
   v4f pos;
-} RenderCamera;
+} WhiskerCamera;
 
 typedef struct {
   v4f intersection;

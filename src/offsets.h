@@ -40,22 +40,23 @@
  * ?  49 89 D4 49 89 CF 80 79 10 00 75 0B 4C 89 F9
  * 4C 89 E2
  * 
- * Use cross reference of Level::interactionCheck() to find this function.
+ * Find the constructor of WhiskerCamera, and find WhiskerCamera::update()
+ * through lpVtbl.
  * 
- * Sig: RenderCamera::update():
+ * Sig: WhiskerCamera::WhiskerCamera():
+ * 55 41 57 41 56 56 57 53 48 83 EC 28 48 8D 6C 24
+ * ?  41 89 D6 49 89 CF 48 8D 05 ?  ?  ?  ?  48 89
+ * 01 48 8B 89 ?  ?  ?  ?  48 85 C9 74 22 41 8B 97
+ * 
+ * Sig: WhiskerCamera::update():
  * 55 41 57 41 56 41 55 41 54 56 57 53 48 81 EC ?
  * ?  ?  ?  48 8D AC 24 ?  ?  ?  ?  C5 78 29 BD ?
  * ?  ?  ?  C5 78 29 B5 ?  ?  ?  ?  C5 78 29 AD ?
  * ?  ?  ?  C5 78 29 A5 ?  ?  ?  ?  C5 78 29 9D ?
  * ?  ?  ?  C5 78 29 95 ?  ?  ?  ?  C5 78 29 8D ?
  * ?  ?  ?  C5 78 29 85 ?  ?  ?  ?  C5 F8 29 BD ?
- * ?  ?  ?  C5 F8 29 B5 ?  ?  ?  ?  49 89 CC 48 83
- * BA ?  ?  ?  ?  ?  0F 84 ?  ?  ?  ?  48 89 D7 48
- * 8B 8A ?  ?  ?  ?  48 8D 75 C8 48 89 F2 45 31 C0
- * 45 31 C9 E8 ?  ?  ?  ?  48 89 F1 E8 ?  ?  ?  ?
- * 41 80 BC 24 ?  ?  ?  ?  ?  75 2A 48 8B 8F ?  ?
- * ?  ?  E8 ?  ?  ?  ?  84 C0 74 0B 4C 89 E1 48 89
- * FA E8 ?  ?  ?  ? 
+ * ?  ?  ?  C5 F8 29 B5 ?  ?  ?  ?  49 89 CD 48 83
+ * BA ?  ?  ?  ?  ?  0F 84 
  */
 
 #if VERSION_SKY == 1
@@ -73,7 +74,7 @@ static const u64 offset_SkyCamera_update = 0x01A1DCF0ull
   , offset_SkyCamera_setState = 0x00000000ull
   , offset_Player_getPos = 0x01C45070ull
   , offset_World_interactionTest = 0x001B5670ull
-  , offset_RenderCamera_update = 0x00000000ull;
+  , offset_WhiskerCamera_update = 0x0049D4C0ull;
 #endif
 
 #endif

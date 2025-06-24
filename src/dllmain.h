@@ -9,3 +9,5 @@
 #include "hooked.h"
 #include "log.h"
 #include "fpv.h"
+#include "sigscan.h"
+#include "init.h"

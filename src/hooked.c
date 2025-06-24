@@ -128,6 +128,7 @@ static void updateCameraFreecam(SkyCamera *this) {
     , lastPos, delta;
   v2f tmp;
   InteractionResult ir;
+  f32 dist;
 
   if (!(this->cameraType == gGui.state.cameraMode + 1))
     return;
@@ -162,16 +163,18 @@ static void updateCameraFreecam(SkyCamera *this) {
   }
   delta = v4fscale(delta, gGui.state.freecamSpeed * gGui.timeElapsedSecond);
 
-  if (
-    gGui.state.freecamCollision
-    && fpvCheckCollision(
-      &lastPos,
-      &delta,
-      v4flen(delta),
-      NULL,
-      (i08 *)&ir)
-  )
-    delta = v4fnew(0, 0, 0, 0);
+  if (gGui.state.freecamCollision ) {
+    dist = v4flen(delta) * 2.0f;
+    if (
+      fpvCheckCollision(
+        &lastPos,
+        &delta,
+        dist < 0.1 ? 0.1 : dist,
+        NULL,
+        (i08 *)&ir)
+    )
+      delta = v4fsub(delta, v4fprojection(delta, ir.normalize));
+  }
 
   // Multiply by speed.
   gGui.state.pos = v4fadd(
@@ -302,13 +305,14 @@ static u64 World_interactionTest_Listener(
 }
 
 /**
- * Detour function for RenderCamera::update().
+ * Detour function for WhiskerCamera::update().
  * 
  * The original function updates the camera for rendering a frame. The detour
- * function modifies the rotation matrix of the render camera.
+ * function only modifies the rotation matrix and position of the render
+ * camera.
  */
-static u64 RenderCamera_update_Listener(
-  RenderCamera *this,
+static u64 WhiskerCamera_update_Listener(
+  WhiskerCamera *this,
   u64 *context
 ) {
   return 0;

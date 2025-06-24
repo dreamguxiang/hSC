@@ -4,7 +4,14 @@ LPVOID baseAddr;
 
 static DWORD WINAPI onAttach(LPVOID lpParam) {
   MSG msg;
+  MH_STATUS ms;
   i32 s;
+
+  tryInitWithSig();
+
+  createAllHooks(baseAddr);
+  ms = MH_EnableHook(MH_ALL_HOOKS);
+  LOGI("MH_EnableHook(): %d\n", ms);
 
   s = gui_init();
   LOGI("gui_init(): %d\n", s);
@@ -26,7 +33,6 @@ BOOL APIENTRY DllMain(
   DWORD dwReason,
   LPVOID lpReserved
 ) {
-  MH_STATUS s;
   HANDLE hSubThread = NULL;
   DWORD threadId = 0;
 
@@ -43,9 +49,6 @@ BOOL APIENTRY DllMain(
     LOGI("(Sky.exe + 0x0): 0x%p\n", baseAddr);
 
     MH_Initialize();
-    createAllHooks(baseAddr);
-    s = MH_EnableHook(MH_ALL_HOOKS);
-    LOGI("MH_EnableHook(): %d\n", s);
 
     hSubThread = CreateThread(
       NULL,

@@ -58,6 +58,7 @@ static inline v4f v4fdiv(v4f a, v4f b);
 static inline v4f v4fscale(v4f a, f32 s);
 static inline v4f v4fnormalize(v4f a);
 static inline v4f v4freflect(v4f n, v4f i);
+static inline v4f v4fprojection(v4f a, v4f b);
 static inline f32 v4fdot(v4f a, v4f b);
 static inline f32 v4flen(v4f a);
 
@@ -216,6 +217,36 @@ static inline v4f v4freflect(v4f n, v4f i) {
   v3 = _mm_sub_ps(v2, v3);
 
   _mm_storeu_ps((float *)&r, v3);
+  return r;
+}
+/**
+ * Calculate the projection vector of a on b.
+ * 
+ * @param a
+ * @param b
+ */
+static inline v4f v4fprojection(v4f a, v4f b) {
+  __m128 v1, v2, v3, zero, mask, scale;
+  v4f r;
+
+  v1 = _mm_loadu_ps((float *)&a);
+  v2 = _mm_loadu_ps((float *)&b);
+
+  // dot(a, b)
+  v1 = _mm_dp_ps(v1, v2, 0xFF);
+  // dot(b, b) = |b|^2
+  v3 = _mm_dp_ps(v2, v2, 0xFF);
+  zero = _mm_setzero_ps();
+  // scale = dot(a, b) / dot(b, b)
+  scale = _mm_div_ps(v1, v2);
+  // Avoid divide by 0.
+  mask = _mm_cmpneq_ps(v3, zero);
+  scale = _mm_and_ps(scale, mask);
+  // Scale b.
+  v1 = _mm_mul_ps(scale, v2);
+
+  _mm_storeu_ps((float *)&r, v1);
+
   return r;
 }
 
