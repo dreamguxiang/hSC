@@ -64,28 +64,6 @@ void *sigScan(const char *moduleName, const char *sig, i32 offset) {
   imageSize = ntHeaders->OptionalHeader.SizeOfImage;
   image = (u08 *)handle;
 
-  /*pattern = sigToPattern(sig, &patternLen);
-
-  for (u64 i = 0ull; i < imageSize - patternLen; i++) {
-    found = 1;
-    for (u64 j = 0ull; j < patternLen; j++) {
-      if (image[i + j] != pattern[j] && pattern[j] != -1) {
-        found = 0;
-        break;
-      }
-    }
-    if (found)
-      return (void *)&image[i];
-    if (!((i + patternLen) & 0x0FFF)) {
-      VirtualQuery(i + patternLen, &mbi, sizeof(MEMORY_BASIC_INFORMATION));
-      if (
-        mbi.Protect != PAGE_EXECUTE_READ
-        || mbi.Protect != PAGE_EXECUTE_READWRITE
-      )
-        i += 0x1000;
-    }
-  }*/
-
   pattern = sigToPattern(sig, &patternLen);
   if (!pattern || patternLen == 0) {
     if (pattern)
@@ -100,7 +78,7 @@ void *sigScan(const char *moduleName, const char *sig, i32 offset) {
     if (!VirtualQuery(scanStart, &mbi, sizeof(mbi)))
       break;
 
-    u08 *blockEnd = (u08*)mbi.BaseAddress + mbi.RegionSize;
+    u08 *blockEnd = (u08 *)mbi.BaseAddress + mbi.RegionSize;
     if (blockEnd > scanEnd)
       blockEnd = scanEnd;
 
@@ -113,11 +91,10 @@ void *sigScan(const char *moduleName, const char *sig, i32 offset) {
         | PAGE_EXECUTE_READWRITE
       ))
     ) {
-
-      for (u08 *ptr = (u08*)mbi.BaseAddress; ptr + patternLen <= blockEnd; ++ptr) {
+      for (u08 *ptr = (u08 *)mbi.BaseAddress; ptr + patternLen <= blockEnd; ptr++) {
         found = 1;
-        for (u64 j = 0; j < patternLen; ++j) {
-          if (ptr[j] != (u08)pattern[j] && pattern[j] != -1) {
+        for (u64 j = 0; j < patternLen; j++) {
+          if (pattern[j] != -1 && ptr[j] != (u08)pattern[j]) {
             found = 0;
             break;
           }

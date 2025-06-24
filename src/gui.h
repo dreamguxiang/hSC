@@ -45,6 +45,7 @@ typedef struct {
 
 typedef struct {
   HWND hWnd;
+  HANDLE hInit;
   GUIState_t state;
   i64 performFreq;
   i64 lastFrameCounter;
@@ -55,6 +56,7 @@ typedef struct {
 
 i08 gui_init();
 i08 gui_deinit();
+i08 gui_waitForInit();
 i08 gui_update();
 
 #ifdef __cplusplus

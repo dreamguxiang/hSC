@@ -64,9 +64,14 @@ static void gui_wndProcEx(
 }
 
 i08 gui_init() {
+  // We assume that the gGui is safely deinitialized.
+  memset(&gGui, 0, sizeof(GUI_t));
   QueryPerformanceFrequency((LARGE_INTEGER *)&gGui.performFreq);
+  gGui.hInit = CreateEventW(NULL, 0, 0, NULL);
   D3D12Hooks::init(
     [](const DXGI_SWAP_CHAIN_DESC *sDesc, void *lpUser) -> void {
+      SetEvent(gGui.hInit);
+      
       f32 dpiScale;
       ImGui::CreateContext();
       ImGui::StyleColorsDark();
@@ -116,7 +121,18 @@ i08 gui_init() {
 
 i08 gui_deinit() {
   D3D12Hooks::deinit();
+  if (gGui.hInit)
+    CloseHandle(gGui.hInit);
   return 1;
+}
+
+i08 gui_waitForInit() {
+  i08 r = 1;
+  if (WaitForSingleObject(gGui.hInit, 30000) != WAIT_OBJECT_0)
+    r = 0;
+  CloseHandle(gGui.hInit);
+  gGui.hInit = NULL;
+  return r;
 }
 
 static inline void gui_displayTips(i08 sameLine, const char *desc) {

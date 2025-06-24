@@ -6,17 +6,23 @@ static DWORD WINAPI onAttach(LPVOID lpParam) {
   MSG msg;
   MH_STATUS ms;
   i32 s;
+  SetupFunctions_t f;
 
-  tryInitWithSig();
+  // Initialize gui.
+  s = gui_init();
+  LOGI("gui_init(): %d\n", s);
+  // We'll wait for the gui.
+  if (!gui_waitForInit())
+    return 0;
 
+  // Initialize functions.
+  setupFuncWithSig(&f);
   createAllHooks(baseAddr);
   ms = MH_EnableHook(MH_ALL_HOOKS);
   LOGI("MH_EnableHook(): %d\n", ms);
 
-  s = gui_init();
-  LOGI("gui_init(): %d\n", s);
-
   while (GetMessageW(&msg, NULL, 0, 0)) {
+    // Wait for the exit message.
     if (msg.message == WM_USER_EXIT)
       PostQuitMessage(0);
     if (msg.message == WM_QUIT)

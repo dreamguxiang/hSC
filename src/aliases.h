@@ -13,6 +13,7 @@
 #define u64 unsigned long long
 #define f32 float
 #define f64 double
+#define nil void
 
 #define PI_F (3.1415926535f)
 
