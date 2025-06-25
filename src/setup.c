@@ -77,7 +77,7 @@ i08 setupFuncWithSig(SetupFunctions_t *functions) {
   void *p;
   const Signature_t *sig;
 
-  LOGI("Scan functions...\n");
+  LOGI("Scaning functions...\n");
 
   if (!functions)
     return 0;
@@ -91,11 +91,13 @@ i08 setupFuncWithSig(SetupFunctions_t *functions) {
       p = sigScanE8("Sky.exe", sig->sig, sig->offset);
     else
       p = sigScan("Sky.exe", sig->sig, sig->offset);
+    
+    functions->functions[i] = p;
 
     if (p)
       LOGI("Found %s: 0x%p\n", sig->name, p);
     else {
-      LOGI("Scan %s failed!\n", sig->name);
+      LOGE("Scan %s failed!\n", sig->name);
       r = 0;
     }
   }

@@ -4,22 +4,33 @@ LPVOID baseAddr;
 
 static DWORD WINAPI onAttach(LPVOID lpParam) {
   MSG msg;
-  MH_STATUS ms;
   i32 s;
   SetupFunctions_t f;
+
+  // Wait for the dx12 to be loaded.
+  s = gui_waitForDll();
+  if (!s) {
+    LOGEF("dxgi.dll or d3d12.dll load timed out.");
+    return 0;
+  }
 
   // Initialize gui.
   s = gui_init();
   LOGI("gui_init(): %d\n", s);
   // We'll wait for the gui.
-  if (!gui_waitForInit())
+  if (!gui_waitForInit()) {
+    LOGEF("Gui init timed out.");
     return 0;
+  }
 
   // Initialize functions.
+  // Sleep for a while in order to wait for the game to completely decrypt
+  // the data.
+  //Sleep(5000);
   setupFuncWithSig(&f);
-  createAllHooks(baseAddr);
-  ms = MH_EnableHook(MH_ALL_HOOKS);
-  LOGI("MH_EnableHook(): %d\n", ms);
+  createAllHooks(baseAddr, &f);
+  //ms = MH_EnableHook(MH_ALL_HOOKS);
+  //LOGI("MH_EnableHook(): %d\n", ms);
 
   while (GetMessageW(&msg, NULL, 0, 0)) {
     // Wait for the exit message.
@@ -45,9 +56,11 @@ BOOL APIENTRY DllMain(
   if (dwReason == DLL_PROCESS_ATTACH) {
     baseAddr = (LPVOID)GetModuleHandleA("Sky.exe");
 
-    if (!baseAddr)
+    if (!baseAddr) {
       // Not the correct game process.
+      LOGEF("Get base address of Sky.exe failed.");
       return TRUE;
+    }
 
     recreateConsole();
 
@@ -63,8 +76,10 @@ BOOL APIENTRY DllMain(
       (LPVOID)hModule,
       0,
       &threadId);
-    if (!hSubThread)
+    if (!hSubThread) {
+      LOGEF("Create subthread failed.");
       return TRUE;
+    }
     LOGI("CreateThread(): 0x%lX\n", threadId);
   } else if (dwReason == DLL_PROCESS_DETACH) {
     PostThreadMessageW(threadId, WM_USER_EXIT, 0, 0);

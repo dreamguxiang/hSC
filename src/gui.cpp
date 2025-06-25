@@ -63,6 +63,18 @@ static void gui_wndProcEx(
   *uBlock = 0;
 }
 
+i08 gui_waitForDll() {
+  i32 ctr = 0;
+  while (!GetModuleHandleA("dxgi.dll") || !GetModuleHandleA("d3d12.dll")) {
+    Sleep(100);
+    ctr++;
+    // Wait for 30 seconds.
+    if (ctr > 300000)
+      return 0;
+  }
+  return 1;
+}
+
 i08 gui_init() {
   // We assume that the gGui is safely deinitialized.
   memset(&gGui, 0, sizeof(GUI_t));

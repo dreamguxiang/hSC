@@ -7,6 +7,7 @@
 #include "fpv.h"
 #include "hooked.h"
 #include "log.h"
+#include "setup.h"
 
 // Defines.
 #define MH_SUCCESSED(v, s) ((v) |= (!(s)))
@@ -20,6 +21,8 @@ typedef u64 (__fastcall *FnSkyCamera_updateUI)(
   SkyCamera *, u64, u64, u64, f32 *, f32 *, f32 *, u64, i08);
 typedef u64 (__fastcall *FnWorld_interactionTest)(
   u64, v4f *, v4f *, float, v4f *, i08 *);
+typedef u64 (__fastcall *FnWhiskerCamera_update)(
+  WhiskerCamera *, u64 *);
 
 // External variables.
 // gFpv defined in fpv.c
@@ -30,12 +33,7 @@ extern GUI_t gGui;
 // Static variables.
 static const v4f gravity = {-9.8f, 0.0f, 0.0f, 0.0f};
 static u64 savedContext = 0;
-static LPVOID origin_SkyCamera_update
-  , origin_SkyCamera_updateUI
-  , origin_SkyCamera__updateParams
-  , origin_World_interactionTest
-  // The pointer passed into this function must be a local variable address.
-  , fn_World_interactionTest;
+static SetupFunctions_t tramp = {0};
 
 /**
  * Encapsulation for invocations of World::interactionCheck().
@@ -51,8 +49,8 @@ static i08 fpvCheckCollision(
   v4f *a5,
   i08 *buf
 ) {
-  if (savedContext && fn_World_interactionTest) {
-    return ((FnWorld_interactionTest)fn_World_interactionTest)(
+  if (savedContext && tramp.fn_Level_interactionTest) {
+    return ((FnWorld_interactionTest)tramp.fn_Level_interactionTest)(
       savedContext, origin, dir, len, a5, buf);
   } else
     return 0;
@@ -212,7 +210,7 @@ static u64 SkyCamera_update_Listener(SkyCamera *this, u64 context) {
   // NOTE: We should NOT save the SkyCamera *this variable due to it may vary
   // whenever. Every frame the update should be presented in the detour
   // function only.
-  result = ((FnSkyCamera_update)origin_SkyCamera_update)(this, context);
+  result = ((FnSkyCamera_update)tramp.fn_SkyCamera_update)(this, context);
   return result;
 }
 
@@ -226,7 +224,7 @@ static u64 SkyCamera__updateParams_Listener(SkyCamera *this, u64 context) {
   i64 qpc, inteval;
   GUIState_t *guiState = &gGui.state;
 
-  result = ((FnSkyCamera__updateParams)origin_SkyCamera__updateParams)(
+  result = ((FnSkyCamera__updateParams)tramp.fn_SkyCamera__updateParams)(
     this, context);
 
   if (!guiState->enable)
@@ -272,7 +270,7 @@ static u64 SkyCamera_updateUI_Listener(
   if (gGui.state.noOriginalUi)
     // Disable original camera ui.
     return 0;
-  result = ((FnSkyCamera_updateUI)origin_SkyCamera_updateUI)(
+  result = ((FnSkyCamera_updateUI)tramp.fn_SkyCamera_updateUI)(
     this, a2, a3, a4, scale, focus, brightness, a8, a9);
   return result;
 }
@@ -282,6 +280,8 @@ static u64 SkyCamera_updateUI_Listener(
  * 
  * The original function is executing the interaction check for a line and
  * current level.
+ * 
+ * The pointer passed into this function must be a local variable address.
  * 
  * Param a5 and a6 is missed when use IDA to decompile.
  */
@@ -299,7 +299,7 @@ static u64 World_interactionTest_Listener(
     savedContext = a1;
     LOGI("World::interactionTest(): context: %p\n", (void *)savedContext);
   }
-  result = ((FnWorld_interactionTest)origin_World_interactionTest)(
+  result = ((FnWorld_interactionTest)tramp.fn_Level_interactionTest)(
     a1, origin, direction, a4, a5, a6);
   return result;
 }
@@ -315,40 +315,53 @@ static u64 WhiskerCamera_update_Listener(
   WhiskerCamera *this,
   u64 *context
 ) {
-  return 0;
+  u64 result;
+  result = ((FnWhiskerCamera_update)tramp.fn_WhiskerCamera_update)(
+    this, context);
+  return result;
 }
+
+static const void *detourFunc[7] = {
+  SkyCamera__updateParams_Listener,
+  SkyCamera_updateUI_Listener,
+  NULL,
+  SkyCamera_update_Listener,
+  NULL,
+  World_interactionTest_Listener,
+  WhiskerCamera_update_Listener
+};
 
 /**
  * Hook all the functions that we need.
  */
-i08 createAllHooks(void *baseAddr) {
+i08 createAllHooks(void *baseAddr, SetupFunctions_t *func) {
   MH_STATUS s;
-  i08 r = 0;
+  i32 length;
+  i08 r = 1;
+  void *fn;
 
-  s = MH_CreateHook(
-    baseAddr + offset_SkyCamera_update,
-    SkyCamera_update_Listener,
-    &origin_SkyCamera_update);
-  MH_SUCCESSED(r, s);
+  length = sizeof(detourFunc) / sizeof(void *);
+  for (i32 i = 0; i < length; i++) {
+    if (!func->functions[i] || !detourFunc[i])
+      continue;
+    fn = func->functions[i];
+    s = MH_CreateHook(
+      fn,
+      (void *)detourFunc[i],
+      &tramp.functions[i]);
+    if (s) {
+      LOGE("Create hook on 0x%p failed.\n", fn);
+      r = 0;
+    } else {
+      LOGI("Created hook on 0x%p\n", fn);
+      s = MH_EnableHook(fn);
+      if (s) {
+        LOGE("Enable hook on 0x%p failed.\n", fn);
+        r = 0;
+      } else
+        LOGI("Enabled hook on 0x%p\n", fn);
+    }
+  }
 
-  s = MH_CreateHook(
-    baseAddr + offset_SkyCamera_updateUI,
-    SkyCamera_updateUI_Listener,
-    &origin_SkyCamera_updateUI);
-  MH_SUCCESSED(r, s);
-
-  s = MH_CreateHook(
-    baseAddr + offset_SkyCamera__updateParams,
-    SkyCamera__updateParams_Listener,
-    &origin_SkyCamera__updateParams);
-  MH_SUCCESSED(r, s);
-
-  fn_World_interactionTest = baseAddr + offset_World_interactionTest;
-  s = MH_CreateHook(
-    fn_World_interactionTest,
-    World_interactionTest_Listener,
-    &origin_World_interactionTest);
-  MH_SUCCESSED(r, s);
-
-  return !s;
+  return r;
 }

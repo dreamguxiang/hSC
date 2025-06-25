@@ -13,14 +13,14 @@ void recreateConsole() {
 #endif
 }
 
-void logiImp(const char *format, ...) {
+void logImp(const char *format, ...) {
   SYSTEMTIME time = {0};
   va_list arg;
 
   va_start(arg, format);
   GetLocalTime(&time);
   printf(
-    "[%04d-%02d-%02d %02d:%02d:%02d.%03d][INFO] ",
+    "[%04d-%02d-%02d %02d:%02d:%02d.%03d]",
     time.wYear,
     time.wMonth,
     time.wDay,
@@ -34,14 +34,14 @@ void logiImp(const char *format, ...) {
   va_end(arg);
 }
 
-void wlogiImp(const wchar_t *format, ...) {
+void wlogImp(const wchar_t *format, ...) {
   SYSTEMTIME time = {0};
   va_list arg;
 
   va_start(arg, format);
   GetLocalTime(&time);
   wprintf(
-    L"[%04d-%02d-%02d %02d:%02d:%02d.%03d][INFO] ",
+    L"[%04d-%02d-%02d %02d:%02d:%02d.%03d]",
     time.wYear,
     time.wMonth,
     time.wDay,
