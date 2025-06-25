@@ -3,7 +3,6 @@
 LPVOID baseAddr;
 
 static DWORD WINAPI onAttach(LPVOID lpParam) {
-  MSG msg;
   i32 s;
 
   // Wait for the dx12 to be loaded.
@@ -23,23 +22,10 @@ static DWORD WINAPI onAttach(LPVOID lpParam) {
   }
 
   // Initialize functions. Sleep for a while in order to wait for the game to
-  // completely decrypt the uinstructions.
+  // completely decrypt the instructions.
   Sleep(2500);
   initAllHooks();
   createAllHooks();
-
-  while (GetMessageW(&msg, NULL, 0, 0)) {
-    // Wait for the exit message.
-    if (msg.message == WM_USER_EXIT)
-      PostQuitMessage(0);
-    if (msg.message == WM_QUIT)
-      break;
-  }
-
-  // This won't execute actually. This thread may be terminated before the
-  // DllMain is called.
-  removeAllHooks();
-  gui_deinit();
 
   return 0;
 }
@@ -80,8 +66,8 @@ BOOL APIENTRY DllMain(
     LOGI("CreateThread(): 0x%lX\n", threadId);
   } else if (dwReason == DLL_PROCESS_DETACH) {
     LOGI("Dll detached.\n");
-    PostThreadMessageW(threadId, WM_USER_EXIT, 0, 0);
-    WaitForSingleObject(hSubThread, INFINITE);
+
+    // The cleanup procedure is removed. Just let the OS to take over it.
     MH_DisableHook(MH_ALL_HOOKS);
     MH_Uninitialize();
   }
