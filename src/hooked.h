@@ -4,6 +4,8 @@
 #include "aliases.h"
 #include "setup.h"
 
-i08 createAllHooks(void *baseAddr, SetupFunctions_t *func);
+i08 initAllHooks();
+i08 createAllHooks();
+i08 removeAllHooks();
 
 #endif

@@ -12,3 +12,4 @@ test*
 .vscode/
 dist/
 pack/
+.VSCodeCounter

@@ -35,6 +35,10 @@ static const v4f gravity = {-9.8f, 0.0f, 0.0f, 0.0f};
 static u64 savedContext = 0;
 static SetupFunctions_t tramp = {0};
 
+// Global variables.
+static i08 gInit = 0;
+static SetupFunctions_t gFunc;
+
 /**
  * Encapsulation for invocations of World::interactionCheck().
  * 
@@ -294,7 +298,7 @@ static u64 World_interactionTest_Listener(
   i08 *a6
 ) {
   u64 result;
-  if (savedContext != a1) {
+  if (savedContext != a1 && gInit) {
     // Save pointer to current context.
     savedContext = a1;
     LOGI("World::interactionTest(): context: %p\n", (void *)savedContext);
@@ -332,23 +336,35 @@ static const void *detourFunc[7] = {
 };
 
 /**
+ * Scan functions with signature.
+ */
+i08 initAllHooks() {
+  return setupFuncWithSig(&gFunc);
+}
+
+/**
  * Hook all the functions that we need.
  */
-i08 createAllHooks(void *baseAddr, SetupFunctions_t *func) {
+i08 createAllHooks() {
   MH_STATUS s;
   i32 length;
   i08 r = 1;
   void *fn;
 
+  if (gInit)
+    return 1;
+
   length = sizeof(detourFunc) / sizeof(void *);
   for (i32 i = 0; i < length; i++) {
-    if (!func->functions[i] || !detourFunc[i])
+    if (!gFunc.functions[i] || !detourFunc[i])
       continue;
-    fn = func->functions[i];
+
+    fn = gFunc.functions[i];
     s = MH_CreateHook(
       fn,
       (void *)detourFunc[i],
       &tramp.functions[i]);
+
     if (s) {
       LOGE("Create hook on 0x%p failed.\n", fn);
       r = 0;
@@ -362,6 +378,35 @@ i08 createAllHooks(void *baseAddr, SetupFunctions_t *func) {
         LOGI("Enabled hook on 0x%p\n", fn);
     }
   }
+
+  gInit = 1;
+
+  return r;
+}
+
+/**
+ * Remove hooks on the functions.
+ */
+i08 removeAllHooks() {
+  MH_STATUS s;
+  i32 length;
+  i08 r = 1;
+  void *fn;
+
+  length = sizeof(detourFunc) / sizeof(void *);
+  for (i32 i = 0; i < length; i++) {
+    fn = gFunc.functions[i];
+    if (!fn || !tramp.functions[i])
+      continue;
+    s = MH_RemoveHook(fn);
+    if (s) {
+      LOGE("Remove hook on 0x%p failed.\n", fn);
+      r = 0;
+    } else
+      LOGI("Removed hook on 0x%p\n", fn);
+  }
+
+  gInit = 0;
 
   return r;
 }

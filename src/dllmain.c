@@ -5,7 +5,6 @@ LPVOID baseAddr;
 static DWORD WINAPI onAttach(LPVOID lpParam) {
   MSG msg;
   i32 s;
-  SetupFunctions_t f;
 
   // Wait for the dx12 to be loaded.
   s = gui_waitForDll();
@@ -23,14 +22,11 @@ static DWORD WINAPI onAttach(LPVOID lpParam) {
     return 0;
   }
 
-  // Initialize functions.
-  // Sleep for a while in order to wait for the game to completely decrypt
-  // the data.
-  //Sleep(5000);
-  setupFuncWithSig(&f);
-  createAllHooks(baseAddr, &f);
-  //ms = MH_EnableHook(MH_ALL_HOOKS);
-  //LOGI("MH_EnableHook(): %d\n", ms);
+  // Initialize functions. Sleep for a while in order to wait for the game to
+  // completely decrypt the uinstructions.
+  Sleep(2500);
+  initAllHooks();
+  createAllHooks();
 
   while (GetMessageW(&msg, NULL, 0, 0)) {
     // Wait for the exit message.
@@ -40,6 +36,9 @@ static DWORD WINAPI onAttach(LPVOID lpParam) {
       break;
   }
 
+  // This won't execute actually. This thread may be terminated before the
+  // DllMain is called.
+  removeAllHooks();
   gui_deinit();
 
   return 0;
@@ -56,11 +55,9 @@ BOOL APIENTRY DllMain(
   if (dwReason == DLL_PROCESS_ATTACH) {
     baseAddr = (LPVOID)GetModuleHandleA("Sky.exe");
 
-    if (!baseAddr) {
+    if (!baseAddr)
       // Not the correct game process.
-      LOGEF("Get base address of Sky.exe failed.");
       return TRUE;
-    }
 
     recreateConsole();
 
@@ -77,11 +74,12 @@ BOOL APIENTRY DllMain(
       0,
       &threadId);
     if (!hSubThread) {
-      LOGEF("Create subthread failed.");
+      LOGEF("Create subthread failed.\n");
       return TRUE;
     }
     LOGI("CreateThread(): 0x%lX\n", threadId);
   } else if (dwReason == DLL_PROCESS_DETACH) {
+    LOGI("Dll detached.\n");
     PostThreadMessageW(threadId, WM_USER_EXIT, 0, 0);
     WaitForSingleObject(hSubThread, INFINITE);
     MH_DisableHook(MH_ALL_HOOKS);

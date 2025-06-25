@@ -10,4 +10,3 @@
 #include "log.h"
 #include "fpv.h"
 #include "sigscan.h"
-#include "setup.h"
