@@ -15,7 +15,7 @@ static const Signature_t sigE8_SkyCamera_updateUI = {
   .sig =
     "4C 8D 84 24 ?  ?  ?  ?  4C 8D 8C 24 ?  ?  ?  ?  "
     "48 89 F1 48 89 FA E8 ?  ?  ?  ?  C5 FA 10 86 ?  ",
-  .name = "SkyCamera::_updateUI()",
+  .name = "SkyCameraProp::_updateUI()",
   .indirect = 1,
   .offset = 0x16
 };
@@ -23,7 +23,7 @@ static const Signature_t sigE8_SkyCamera__updateParams = {
   .sig =
     "C6 44 24 ?  ?  48 89 F1 48 89 FA E8 ?  ?  ?  ?  "
     "4C 8D 44 24 ?  48 89 F1 48 89 FA E8 ?  ?  ?  ?  ",
-  .name = "SkyCamera::_updateParams()",
+  .name = "SkyCameraProp::_updateParams()",
   .indirect = 1,
   .offset = 0x0B
 };
@@ -31,7 +31,7 @@ static const Signature_t sigE8_SkyCamera_update = {
   .sig =
     "80 ?  ?  ?  ?  ?  ?  74 ?  48 89 ?  48 89 ?  E8 "
     "?  ?  ?  ?  E9 ?  ?  ?  ?  48 8B ?  ?  ?  ?  ?  ",
-  .name = "SkyCamera::update()",
+  .name = "SkyCameraProp::update()",
   .indirect = 1,
   .offset = 0x0F
 };

@@ -6,10 +6,10 @@
 #define VERSION_SKY 2
 
 /**
- * Firstly we find the SkyCamera::update function through signature from IDA,
+ * Firstly we find the SkyCameraProp::update function through signature from IDA,
  * Then we can find the other functions.
  * 
- * Sig: SkyCamera::update():
+ * Sig: SkyCameraProp::update():
  * 55 41 57 41 56 41 54 56 57 53 48 81 EC ?  ?  ? 
  * ?  48 8D AC 24 ?  ?  ?  ?  C5 78 29 85 ?  ?  ?
  * ?  C5 F8 29 BD ?  ?  ?  ?  C5 F8 29 B5 ?  ?  ?

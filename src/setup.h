@@ -3,9 +3,11 @@
 
 #include "aliases.h"
 
+#include <windows.h>
+
 typedef union {
   struct {
-    // SkyCamera functions.
+    // SkyCameraProp functions.
     void *fn_SkyCamera__updateParams;
     void *fn_SkyCamera_updateUI;
     void *fn_SkyCamera_setState;

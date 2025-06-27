@@ -15,10 +15,10 @@
 #define OVERRIDE_3(cond, v11, v12, v2) ((cond) ? ((v11) = ((v12) = (v2))) : ((v2) = (v11)))
 
 // Typedefs.
-typedef u64 (__fastcall *FnSkyCamera_update)(SkyCamera *, u64);
-typedef u64 (__fastcall *FnSkyCamera__updateParams)(SkyCamera *, u64);
+typedef u64 (__fastcall *FnSkyCamera_update)(SkyCameraProp *, u64);
+typedef u64 (__fastcall *FnSkyCamera__updateParams)(SkyCameraProp *, u64);
 typedef u64 (__fastcall *FnSkyCamera_updateUI)(
-  SkyCamera *, u64, u64, u64, f32 *, f32 *, f32 *, u64, i08);
+  SkyCameraProp *, u64, u64, u64, f32 *, f32 *, f32 *, u64, i08);
 typedef u64 (__fastcall *FnWorld_interactionTest)(
   u64, v4f *, v4f *, float, v4f *, i08 *);
 typedef u64 (__fastcall *FnWhiskerCamera_update)(
@@ -60,15 +60,15 @@ static i08 fpvCheckCollision(
     return 0;
 }
 
-static void updateCameraSet(SkyCamera *this) {
+static void updateCameraSet(SkyCameraProp *this) {
   v4f *pos, *dir;
   v2f *gsRot, rot;
 
   if (!(this->cameraType == gGui.state.cameraMode + 1))
     return;
 
-  pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
-  dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
+  pos = &((SkyCamera *)this->unk_2_3[2])->pos;
+  dir = &((SkyCamera *)this->unk_2_3[2])->dir;
 
   //((u64 (__fastcall *)(u64, v4f *))baseAddr + offset_Player_getPos)(this->player, &pp);
 
@@ -125,7 +125,7 @@ static void updateCameraSet(SkyCamera *this) {
     gGui.state.brightness);
 }
 
-static void updateCameraFreecam(SkyCamera *this) {
+static void updateCameraFreecam(SkyCameraProp *this) {
   v4f *pos, *dir
     , lastPos, delta;
   v2f tmp;
@@ -135,8 +135,8 @@ static void updateCameraFreecam(SkyCamera *this) {
   if (!(this->cameraType == gGui.state.cameraMode + 1))
     return;
 
-  pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
-  dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
+  pos = &((SkyCamera *)this->unk_2_3[2])->pos;
+  dir = &((SkyCamera *)this->unk_2_3[2])->dir;
 
   if (gGui.state.resetPosFlag) {
     gGui.state.pos = *pos;
@@ -185,13 +185,13 @@ static void updateCameraFreecam(SkyCamera *this) {
   *pos = gGui.state.pos;
 }
 
-static void updateCameraFPV(SkyCamera *this) {
+static void updateCameraFPV(SkyCameraProp *this) {
   v4f *pos;//, *dir;
 
   if (this->cameraType != gGui.state.cameraMode + 1)
     return;
 
-  pos = (v4f *)((i08 *)this->unk_2_3[2] + 0x130);
+  pos = &((SkyCamera *)this->unk_2_3[2])->pos;
   //dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
 
   if (gGui.state.resetPosFlag) {
@@ -205,13 +205,13 @@ static void updateCameraFPV(SkyCamera *this) {
 }
 
 /**
- * Detour function for SkyCamera::update().
+ * Detour function for SkyCameraProp::update().
  * 
  * This is the main update function of the camera prop.
  */
-static u64 SkyCamera_update_Listener(SkyCamera *this, u64 context) {
+static u64 SkyCamera_update_Listener(SkyCameraProp *this, u64 context) {
   u64 result;
-  // NOTE: We should NOT save the SkyCamera *this variable due to it may vary
+  // NOTE: We should NOT save the SkyCameraProp *this variable due to it may vary
   // whenever. Every frame the update should be presented in the detour
   // function only.
   result = ((FnSkyCamera_update)tramp.fn_SkyCamera_update)(this, context);
@@ -219,11 +219,11 @@ static u64 SkyCamera_update_Listener(SkyCamera *this, u64 context) {
 }
 
 /**
- * Detour function for SkyCamera::_updateParams().
+ * Detour function for SkyCameraProp::_updateParams().
  * 
  * The original function calculates the camera position and facing direction.
  */
-static u64 SkyCamera__updateParams_Listener(SkyCamera *this, u64 context) {
+static u64 SkyCamera__updateParams_Listener(SkyCameraProp *this, u64 context) {
   u64 result;
   i64 qpc, inteval;
   GUIState_t *guiState = &gGui.state;
@@ -255,12 +255,12 @@ static u64 SkyCamera__updateParams_Listener(SkyCamera *this, u64 context) {
 }
 
 /**
- * Detour function for SkyCamera::updateUi().
+ * Detour function for SkyCameraProp::updateUi().
  * 
  * The original function renders the camera UI on the screen.
  */
 static u64 SkyCamera_updateUI_Listener(
-  SkyCamera *this,
+  SkyCameraProp *this,
   u64 a2,
   u64 a3,
   u64 a4,

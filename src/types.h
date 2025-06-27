@@ -12,6 +12,7 @@ typedef enum {
   PLACE = 3
 } SkyCameraType;
 
+// Stores the status of the camera prop.
 typedef struct {
   i64 lpVtbl;
   i32 field_8;
@@ -58,18 +59,45 @@ typedef struct {
   i08 unk_8[20];
   i32 *unk_8_2;
   i08 unk_8_3[5];
-} SkyCamera;
+} SkyCameraProp;
 
-// The size of this struct is incorrect. This definition only contains 
-// components what we need.
 typedef struct {
-  u64 lpVtbl;
-  char unk_1[56];
+  v4f unk_1;
+  // Rotate matrix (3x3) is stored separately by rows in three vectors. The
+  // last component of these vectors is 0.
   v4f mat1;
   v4f mat2;
   v4f mat3;
-  v4f pos;
+  // The last element of this vector is 1. We can consider the four vectors
+  // as a single matrix (4x4).
+  v4f cameraPos;
+  char unk_2[32];
+} MainCameraContext;
+
+// The parent class of all possible camera updates.
+typedef struct MainCamera {
+  u64 *lpVtbl;
+  u64 unk_1;
+  u64 unk_2;
+  struct MainCamera *prev;
+  struct MainCamera *next;
+  u64 unk_3;
+  MainCameraContext context1;
+  MainCameraContext context2;
+} MainCamera;
+
+// The size of the following two structs is incorrect. This definition only
+// contains components what we need.
+typedef struct {
+  MainCamera super;
 } WhiskerCamera;
+
+typedef struct {
+  MainCamera super;
+  char unk_1[0x20];
+  v4f pos;
+  v4f dir;
+} SkyCamera;
 
 typedef struct {
   v4f intersection;

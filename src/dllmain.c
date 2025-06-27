@@ -14,12 +14,12 @@ static DWORD WINAPI onAttach(LPVOID lpParam) {
 
   // Initialize gui.
   s = gui_init();
-  LOGI("gui_init(): %d\n", s);
   // We'll wait for the gui.
   if (!gui_waitForInit()) {
     LOGEF("Gui init timed out.");
     return 0;
   }
+  LOGI("gui_init(): %d\n", s);
 
   // Initialize functions. Sleep for a while in order to wait for the game to
   // completely decrypt the instructions.
@@ -35,7 +35,6 @@ BOOL APIENTRY DllMain(
   DWORD dwReason,
   LPVOID lpReserved
 ) {
-  HANDLE hSubThread = NULL;
   DWORD threadId = 0;
 
   if (dwReason == DLL_PROCESS_ATTACH) {
@@ -47,25 +46,25 @@ BOOL APIENTRY DllMain(
 
     recreateConsole();
 
-    LOGI("Dll injected.\n");
+    LOGI("hSC injected.\n");
     LOGI("(Sky.exe + 0x0): 0x%p\n", baseAddr);
 
     MH_Initialize();
 
-    hSubThread = CreateThread(
+    if (!CreateThread(
       NULL,
       0,
       onAttach,
       (LPVOID)hModule,
       0,
-      &threadId);
-    if (!hSubThread) {
+      &threadId
+    )) {
       LOGEF("Create subthread failed.\n");
       return TRUE;
     }
     LOGI("CreateThread(): 0x%lX\n", threadId);
   } else if (dwReason == DLL_PROCESS_DETACH) {
-    LOGI("Dll detached.\n");
+    LOGI("hSC detached.\n");
 
     // The cleanup procedure is removed. Just let the OS to take over it.
     MH_DisableHook(MH_ALL_HOOKS);
