@@ -11,7 +11,7 @@ typedef struct {
   i32 offset;
 } Signature_t;
 
-static const Signature_t sigE8_SkyCamera_updateUI = {
+static const Signature_t sigE8_SkyCameraProp_updateUI = {
   .sig =
     "4C 8D 84 24 ?  ?  ?  ?  4C 8D 8C 24 ?  ?  ?  ?  "
     "48 89 F1 48 89 FA E8 ?  ?  ?  ?  C5 FA 10 86 ?  ",
@@ -19,7 +19,7 @@ static const Signature_t sigE8_SkyCamera_updateUI = {
   .indirect = 1,
   .offset = 0x16
 };
-static const Signature_t sigE8_SkyCamera__updateParams = {
+static const Signature_t sigE8_SkyCameraProp__updateParams = {
   .sig =
     "C6 44 24 ?  ?  48 89 F1 48 89 FA E8 ?  ?  ?  ?  "
     "4C 8D 44 24 ?  48 89 F1 48 89 FA E8 ?  ?  ?  ?  ",
@@ -27,7 +27,7 @@ static const Signature_t sigE8_SkyCamera__updateParams = {
   .indirect = 1,
   .offset = 0x0B
 };
-static const Signature_t sigE8_SkyCamera_update = {
+static const Signature_t sigE8_SkyCameraProp_update = {
   .sig =
     "80 ?  ?  ?  ?  ?  ?  74 ?  48 89 ?  48 89 ?  E8 "
     "?  ?  ?  ?  E9 ?  ?  ?  ?  48 8B ?  ?  ?  ?  ?  ",
@@ -60,15 +60,25 @@ static const Signature_t sig_WhiskerCamera_update = {
   .indirect = 0,
   .offset = -0x6B
 };
+static const Signature_t sig_SkyCamera_update = {
+  .sig =
+    "55 56 57 48 83 EC ?  48 8D 6C 24 ?  ?  89 ?  C5 "
+    "FA 10 05 ?  ?  ?  ?  C5 F8 29 41 ?  C5 F8 28 05 "
+    "?  ?  ?  ?  C5 F8 29 41 ?  48 8D ?  ?  C5 F8 28 ",
+  .name = "SkyCamera::update()",
+  .indirect = 0,
+  .offset = 0x00
+};
 
-static const Signature_t *funcSig[7] = {
-  &sigE8_SkyCamera__updateParams,
-  &sigE8_SkyCamera_updateUI,
+static const Signature_t *funcSig[8] = {
+  &sigE8_SkyCameraProp__updateParams,
+  &sigE8_SkyCameraProp_updateUI,
   NULL,
-  &sigE8_SkyCamera_update,
+  &sigE8_SkyCameraProp_update,
   &sigE8_Player_getCameraPos,
   &sigE8_World_interactionTest,
-  &sig_WhiskerCamera_update
+  &sig_WhiskerCamera_update,
+  &sig_SkyCamera_update
 };
 
 i08 setupFuncWithSig(SetupFunctions_t *functions) {

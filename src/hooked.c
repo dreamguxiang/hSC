@@ -15,14 +15,16 @@
 #define OVERRIDE_3(cond, v11, v12, v2) ((cond) ? ((v11) = ((v12) = (v2))) : ((v2) = (v11)))
 
 // Typedefs.
-typedef u64 (__fastcall *FnSkyCamera_update)(SkyCameraProp *, u64);
-typedef u64 (__fastcall *FnSkyCamera__updateParams)(SkyCameraProp *, u64);
-typedef u64 (__fastcall *FnSkyCamera_updateUI)(
+typedef u64 (__fastcall *FnSkyCameraProp_update)(SkyCameraProp *, u64);
+typedef u64 (__fastcall *FnSkyCameraProp__updateParams)(SkyCameraProp *, u64);
+typedef u64 (__fastcall *FnSkyCameraProp_updateUI)(
   SkyCameraProp *, u64, u64, u64, f32 *, f32 *, f32 *, u64, i08);
 typedef u64 (__fastcall *FnWorld_interactionTest)(
   u64, v4f *, v4f *, float, v4f *, i08 *);
 typedef u64 (__fastcall *FnWhiskerCamera_update)(
   WhiskerCamera *, u64 *);
+typedef u64 (__fastcall *FnSkyCamera_update)(
+  SkyCamera *, u64 *);
 
 // External variables.
 // gFpv defined in fpv.c
@@ -209,12 +211,12 @@ static void updateCameraFPV(SkyCameraProp *this) {
  * 
  * This is the main update function of the camera prop.
  */
-static u64 SkyCamera_update_Listener(SkyCameraProp *this, u64 context) {
+static u64 SkyCameraProp_update_Listener(SkyCameraProp *this, u64 context) {
   u64 result;
   // NOTE: We should NOT save the SkyCameraProp *this variable due to it may vary
   // whenever. Every frame the update should be presented in the detour
   // function only.
-  result = ((FnSkyCamera_update)tramp.fn_SkyCamera_update)(this, context);
+  result = ((FnSkyCameraProp_update)tramp.fn_SkyCameraProp_update)(this, context);
   return result;
 }
 
@@ -223,12 +225,12 @@ static u64 SkyCamera_update_Listener(SkyCameraProp *this, u64 context) {
  * 
  * The original function calculates the camera position and facing direction.
  */
-static u64 SkyCamera__updateParams_Listener(SkyCameraProp *this, u64 context) {
+static u64 SkyCameraProp__updateParams_Listener(SkyCameraProp *this, u64 context) {
   u64 result;
   i64 qpc, inteval;
   GUIState_t *guiState = &gGui.state;
 
-  result = ((FnSkyCamera__updateParams)tramp.fn_SkyCamera__updateParams)(
+  result = ((FnSkyCameraProp__updateParams)tramp.fn_SkyCameraProp__updateParams)(
     this, context);
 
   if (!guiState->enable)
@@ -255,11 +257,11 @@ static u64 SkyCamera__updateParams_Listener(SkyCameraProp *this, u64 context) {
 }
 
 /**
- * Detour function for SkyCameraProp::updateUi().
+ * Detour function for SkyCameraProp::updateUI().
  * 
  * The original function renders the camera UI on the screen.
  */
-static u64 SkyCamera_updateUI_Listener(
+static u64 SkyCameraProp_updateUI_Listener(
   SkyCameraProp *this,
   u64 a2,
   u64 a3,
@@ -274,7 +276,7 @@ static u64 SkyCamera_updateUI_Listener(
   if (gGui.state.noOriginalUi)
     // Disable original camera ui.
     return 0;
-  result = ((FnSkyCamera_updateUI)tramp.fn_SkyCamera_updateUI)(
+  result = ((FnSkyCameraProp_updateUI)tramp.fn_SkyCameraProp_updateUI)(
     this, a2, a3, a4, scale, focus, brightness, a8, a9);
   return result;
 }
@@ -311,9 +313,7 @@ static u64 World_interactionTest_Listener(
 /**
  * Detour function for WhiskerCamera::update().
  * 
- * The original function updates the camera for rendering a frame. The detour
- * function only modifies the rotation matrix and position of the render
- * camera.
+ * The original function updates the default camera the mouse controls.
  */
 static u64 WhiskerCamera_update_Listener(
   WhiskerCamera *this,
@@ -325,14 +325,31 @@ static u64 WhiskerCamera_update_Listener(
   return result;
 }
 
-static const void *detourFunc[7] = {
-  SkyCamera__updateParams_Listener,
-  SkyCamera_updateUI_Listener,
+/**
+ * Detour function for SkyCamera::update().
+ * 
+ * The original function calculates the rotation matrix from the orientation
+ * vector.
+ */
+static u64 SkyCamera_update_Listener(
+  SkyCamera *this,
+  u64 *context
+) {
+  u64 result;
+  result = ((FnSkyCamera_update)tramp.fn_SkyCamera_update)(
+    this, context);
+  return result;
+}
+
+static const void *detourFunc[8] = {
+  SkyCameraProp__updateParams_Listener,
+  SkyCameraProp_updateUI_Listener,
   NULL,
-  SkyCamera_update_Listener,
+  SkyCameraProp_update_Listener,
   NULL,
   World_interactionTest_Listener,
-  WhiskerCamera_update_Listener
+  WhiskerCamera_update_Listener,
+  SkyCamera_update_Listener
 };
 
 /**
