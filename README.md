@@ -33,5 +33,5 @@
 ## 三、编译方式
 &emsp;本软件使用mingw64-15.1.0编译。下载仓库release界面下对应版本的Source Code (.zip)，解压后在Makefile同目录下新建名为dist的文件夹，运行`mingw32-make.exe`即可。首次编译需运行`mingw32-make.exe all`编译库文件。<br>
 &emsp;本软件不保证可在更低版本的MinGW或低于Win10 22H2的操作系统上编译运行。如有兼容性问题请通过邮件联系。<br>
-&emsp;本软件使用的MinHook经过修改以解决可能由光遇国服的VMP保护导致的hook失败。<br>
-请勿使用非仓库内提供的第三方库版本。
+&emsp;本软件使用的MinHook经过修改以解决可能由光遇国服的VMP保护导致的hook失败，ImGui经过修改以允许在更新的MinGW SDK下编译。<br>
+&emsp;**请勿使用非仓库内提供的第三方库版本。**
