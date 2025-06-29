@@ -94,7 +94,10 @@ typedef struct {
 
 typedef struct {
   MainCamera super;
-  char unk_1[0x20];
+  u64 unk_1;
+  void *prop;
+  void *unk_2;
+  void *unk_3;
   v4f pos;
   v4f dir;
 } SkyCamera;

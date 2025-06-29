@@ -46,6 +46,8 @@ static void gui_wndProcEx(
           || wParam == 'A'
           || wParam == 'S'
           || wParam == 'D'
+          || wParam == 'Q'
+          || wParam == 'E'
           || wParam == VK_SPACE
           || wParam == VK_SHIFT
         )
@@ -63,6 +65,9 @@ static void gui_wndProcEx(
   *uBlock = 0;
 }
 
+/**
+ * Wait for the dll to be loaded.
+ */
 i08 gui_waitForDll() {
   i32 ctr = 0;
   while (!GetModuleHandleA("dxgi.dll") || !GetModuleHandleA("d3d12.dll")) {
@@ -75,15 +80,18 @@ i08 gui_waitForDll() {
   return 1;
 }
 
+/**
+ * Initialize the gui.
+ */
 i08 gui_init() {
   // We assume that the gGui is safely deinitialized.
   memset(&gGui, 0, sizeof(GUI_t));
   QueryPerformanceFrequency((LARGE_INTEGER *)&gGui.performFreq);
   gGui.hInit = CreateEventW(NULL, 0, 0, NULL);
-  D3D12Hooks::init(
+  return D3D12Hooks::init(
     [](const DXGI_SWAP_CHAIN_DESC *sDesc, void *lpUser) -> void {
       SetEvent(gGui.hInit);
-      
+
       f32 dpiScale;
       ImGui::CreateContext();
       ImGui::StyleColorsDark();
@@ -127,10 +135,11 @@ i08 gui_init() {
     },
     nullptr
   );
-
-  return 1;
 }
 
+/**
+ * Uninitialze the dx12 hooks.
+ */
 i08 gui_deinit() {
   D3D12Hooks::deinit();
   if (gGui.hInit)
@@ -138,6 +147,9 @@ i08 gui_deinit() {
   return 1;
 }
 
+/**
+ * Wait for the first IDXGISwapChain::Present() call.
+ */
 i08 gui_waitForInit() {
   i08 r = 1;
   if (WaitForSingleObject(gGui.hInit, 30000) != WAIT_OBJECT_0)
@@ -167,10 +179,10 @@ static inline void gui_subMenuSet() {
   ImGui::SameLine();
   ImGui::InputFloat3("Pos", (float *)&gGui.state.pos);
 
-  // Camera facing input.
+  // Camera rotation input.
   ImGui::Checkbox("##cb2", (bool *)&gGui.state.overrideDir);
   ImGui::SameLine();
-  ImGui::InputFloat2("Facing", (float *)&gGui.state.rot);
+  ImGui::InputFloat3("Rotation", (float *)&gGui.state.rot);
 
   // Clamp camera facing.
   gGui.state.rot.x = fmodf(gGui.state.rot.x, 360.0f);
@@ -194,6 +206,10 @@ static inline void gui_subMenuSet() {
 
 static inline void gui_subMenuFreecam() {
   ImGui::SeparatorText("Free camera");
+  ImGui::Checkbox("QE Roll", (bool *)&gGui.state.freecamRoll);
+  ImGui::BeginDisabled(!gGui.state.freecamRoll);
+  ImGui::DragFloat("Roll Speed", &gGui.state.freecamRollSpeed, .01f, 0, 10.0f);
+  ImGui::EndDisabled();
   ImGui::Checkbox("Axial", (bool *)&gGui.state.freecamAxial);
   gui_displayTips(
     true,
@@ -214,8 +230,10 @@ static inline void gui_subMenuFPV() {
  * Handle keyboard input for freecam mode.
  */
 static void gui_keyboardFreecam() {
-  v4f r = v4fnew(0.0f, 0.0f, 0.0f, 0.0f);
+  v4f r = v4fnew(0.0f, 0.0f, 0.0f, 0.0f)
+    , s = v4fnew(0.0f, 0.0f, 0.0f, 0.0f);
 
+  // Movement.
   if (ImGui::IsKeyDown(ImGuiKey_W))
     r.z += 1.0f;
   if (ImGui::IsKeyDown(ImGuiKey_A))
@@ -224,12 +242,21 @@ static void gui_keyboardFreecam() {
     r.z -= 1.0f;
   if (ImGui::IsKeyDown(ImGuiKey_D))
     r.x -= 1.0f;
+
+  // Roll.
+  if (ImGui::IsKeyDown(ImGuiKey_Q))
+    s.z += 1.0f;
+  if (ImGui::IsKeyDown(ImGuiKey_E))
+    s.z -= 1.0f;
+
+  // Up and down.
   if (ImGui::IsKeyDown(ImGuiKey_Space))
     r.y += 1.0f;
   if (ImGui::IsKeyDown(ImGuiKey_LeftShift))
     r.y -= 1.0f;
 
   gGui.state.movementInput = v4fnormalize(r);
+  gGui.state.facingInput = s;
 }
 
 /**

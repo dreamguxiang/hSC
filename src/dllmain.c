@@ -8,18 +8,21 @@ static DWORD WINAPI onAttach(LPVOID lpParam) {
   // Wait for the dx12 to be loaded.
   s = gui_waitForDll();
   if (!s) {
-    LOGEF("dxgi.dll or d3d12.dll load timed out.");
+    LOGEF("dxgi.dll or d3d12.dll load timed out.\n");
     return 0;
   }
 
   // Initialize gui.
-  s = gui_init();
-  // We'll wait for the gui.
-  if (!gui_waitForInit()) {
-    LOGEF("Gui init timed out.");
+  if (!gui_init()) {
+    LOGEF("Gui init failed.\n");
     return 0;
   }
-  LOGI("gui_init(): %d\n", s);
+  // We'll wait for the gui.
+  if (!gui_waitForInit()) {
+    LOGEF("Gui init timed out.\n");
+    return 0;
+  }
+  LOGI("gui_init() successed.\n");
 
   // Initialize functions. Sleep for a while in order to wait for the game to
   // completely decrypt the instructions.

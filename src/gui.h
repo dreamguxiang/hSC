@@ -25,7 +25,7 @@ typedef struct {
 
   // Original data sync.
   v4f pos;
-  v2f rot;
+  v4f rot;
   f32 scale;
   f32 focus;
   f32 brightness;
@@ -37,10 +37,18 @@ typedef struct {
   i08 overrideScale;
   i08 overrideBrightness;
 
+  // Freecam mode.
   f32 freecamSpeed;
+  f32 freecamRollSpeed;
   i08 freecamAxial;
   i08 freecamCollision;
   i08 resetPosFlag;
+  i08 freecamRoll;
+
+  // Pre-calculated rotation matrix and pos.
+  i08 useMatrix;
+  i08 usePos;
+  v4f mat[4];
 } GUIState_t;
 
 typedef struct {
