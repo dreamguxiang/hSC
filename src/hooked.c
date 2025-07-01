@@ -1,13 +1,14 @@
 #include <math.h>
 #include "MinHook.h"
 
-#include "offsets.h"
 #include "types.h"
 #include "gui.h"
 #include "fpv.h"
 #include "hooked.h"
 #include "log.h"
 #include "setup.h"
+#include "vector.h"
+#include "matrix.h"
 
 // Defines.
 #define MH_SUCCESSED(v, s) ((v) |= (!(s)))
@@ -29,12 +30,15 @@ typedef u64 (__fastcall *FnWhiskerCamera_update)(
   WhiskerCamera *, u64 *);
 typedef u64 (__fastcall *FnSkyCamera_update)(
   SkyCamera *, u64 *);
+typedef u64 (__fastcall *FnMainCamera__getDelta)(
+  u64, i08 *, u64, u64, u64, int, int);
 
 // External variables.
 // gFpv defined in fpv.c
 extern FPV_t gFpv;
-// gGui defined in gui.cpp
+// gGui and gState defined in gui.cpp
 extern GUI_t gGui;
+extern GUIState_t gState;
 
 // Static variables.
 static const v4f gravity = {-9.8f, 0.0f, 0.0f, 0.0f};
@@ -45,19 +49,21 @@ static SetupFunctions_t tramp = {0};
 static i08 gInit = 0;
 static i08 gDoUpdate = 0;
 static SetupFunctions_t gFunc;
+static v4f gMouseDelta;
 
 // ----------------------------------------------
 // [SECTION] Camera update functions.
 // ----------------------------------------------
 
 /**
- * Calculate rotation matrix from euler angle.
+ * Calculate rotation matrix from euler angle, in the order of yaw, pitch,
+ * roll.
  * 
  * @param euler The x, y and z component of this vector indicates the yaw,
  * pitch and roll angles.
  * @param matrix The 3x3 rotation matrix stored in three v4f in rows.
  */
-static inline void eulerToRotation(v4f euler, v4f *matrix) {
+static inline void eulerToRotationXYZ(v4f euler, v4f *matrix) {
   f32 cy = cos(euler.x)
     , sy = sin(euler.x)
     , cp = cos(euler.y)
@@ -65,17 +71,26 @@ static inline void eulerToRotation(v4f euler, v4f *matrix) {
     , cr = cos(euler.z)
     , sr = sin(euler.z);
   
-  matrix[0].x = -(cr * cy + sr * sp * sy);  // R00
-  matrix[0].y = -sr * cp;                   // R01
-  matrix[0].z = cr * sy - sr * sp * cy;     // R02
-    
-  matrix[1].x = cr * sp * sy - sr * cy;     // R10
-  matrix[1].y = cr * cp;                    // R11
-  matrix[1].z = sr * sy + cr * sp * cy;     // R12
-    
-  matrix[2].x = -cp * sy;                   // R20
-  matrix[2].y = sp;                         // R21
-  matrix[2].z = -cp * cy;                   // R22
+  // R00
+  matrix[0].x = cr * cy + sr * sp * sy;
+  // R01
+  matrix[0].y = sr * cp;
+  // R02
+  matrix[0].z = -cr * sy + sr * sp * cy;
+  
+  // R10
+  matrix[1].x = cr * sp * sy - sr * cy;
+  // R11
+  matrix[1].y = cr * cp;
+  // R12
+  matrix[1].z = sr * sy + cr * sp * cy; 
+  
+  // R20
+  matrix[2].x = cp * sy;
+  // R21
+  matrix[2].y = -sp;
+  // R22
+  matrix[2].z = cp * cy;
 }
 
 /**
@@ -103,27 +118,27 @@ static i08 updatePropSet(SkyCameraProp *this) {
   v4f *pos, *dir, *gsRot
     , rot;
 
-  if (this->cameraType != gGui.state.cameraMode + 1)
+  if (this->cameraType != gState.cameraMode + 1)
     return 0;
 
   dir = &((SkyCamera *)this->unk_2_3[2])->dir;
   pos = &((SkyCamera *)this->unk_2_3[2])->pos;
-  gsRot = &gGui.state.rot;
+  gsRot = &gState.rot;
 
   // Override coodinates or sync original camera pos to overlay.
-  OVERRIDE_2(gGui.state.overridePos, *pos, gGui.state.pos);
-  gGui.state.mat[3] = *pos;
+  OVERRIDE_2(gState.overridePos, *pos, gState.pos);
+  gState.mat[3] = *pos;
 
-  if (gGui.state.overrideDir) {
+  if (gState.overrideDir) {
     // Override facing directions.
-    rot = v4fscale(gGui.state.rot, PI_F / 180.0f);
+    rot = v4fscale(gState.rot, PI_F / 180.0f);
 
     // Forcely reset the rotate status.
     this->rotateSpeedX = this->rotateSpeedY = 0;
     this->rotateXAnim = this->rotateX = rot.x;
     this->rotateYAnim = this->rotateY = rot.y;
 
-    eulerToRotation(rot, gGui.state.mat);
+    eulerToRotationXYZ(rot, gState.mat);
   } else {
     // Sync original facing directions to overlay.
     gsRot->y = -asinf(dir->y) / PI_F * 180.0f;
@@ -138,87 +153,110 @@ static i08 updatePropSet(SkyCameraProp *this) {
     }
   }
 
-  gGui.state.usePos = gGui.state.overridePos;
-  gGui.state.useMatrix = gGui.state.overrideDir;
+  gState.usePos = gState.overridePos;
+  gState.useMatrix = gState.overrideDir;
 
   // Override or sync camera params.
   OVERRIDE_3(
-    gGui.state.overrideScale,
+    gState.overrideScale,
     this->scaleAnim,
     this->scale,
-    gGui.state.scale);
+    gState.scale);
   OVERRIDE_3(
-    gGui.state.overrideFocus,
+    gState.overrideFocus,
     this->focusAnim,
     this->focus,
-    gGui.state.focus);
+    gState.focus);
   OVERRIDE_3(
-    gGui.state.overrideBrightness,
+    gState.overrideBrightness,
     this->brightnessAnim,
     this->brightness,
-    gGui.state.brightness);
+    gState.brightness);
   
   return 1;
 }
 
-static i08 updatePropFreecam(SkyCameraProp *this) {
+static i08 updatePropFreecam(SkyCameraProp *this, u64 *context) {
   v4f *pos, *dir
+    , deltaRot = {0}
     , lastPos, delta;
   v2f tmp;
-  InteractionResult ir;
   f32 dist;
+  m44 mat = {0};
+  InteractionResult ir;
 
-  if (!(this->cameraType == gGui.state.cameraMode + 1))
+  if (this->cameraType != gState.cameraMode + 1)
     return 0;
 
   pos = &((SkyCamera *)this->unk_2_3[2])->pos;
   dir = &((SkyCamera *)this->unk_2_3[2])->dir;
 
-  if (gGui.state.resetPosFlag) {
-    gGui.state.pos = *pos;
-    gGui.state.rot.z = 0;
-    gGui.state.resetPosFlag = 0;
+  gState.usePos = 0;
+
+  if (gState.resetPosFlag) {
+    gState.pos = *pos;
+    gState.rot = v4fnew(
+      this->rotateXAnim,
+      this->rotateYAnim,
+      0,
+      0);
+    gState.resetPosFlag = 0;
+    eulerToRotationXYZ(gState.rot, gState.mat);
     return 0;
   }
 
   // Calculte the direction vector parallel to xOz plane.
-  lastPos = gGui.state.pos;
+  lastPos = gState.pos;
   tmp.x = sinf(this->rotateXAnim);
   tmp.y = cosf(this->rotateXAnim);
 
-  if (gGui.state.freecamAxial) {
-    // Rotate it by the movement input. Axial mode will ignore the roll angle.
-    delta.x = tmp.x * gGui.state.movementInput.z + tmp.y * gGui.state.movementInput.x;
-    delta.y = gGui.state.movementInput.y;
-    delta.z = tmp.y * gGui.state.movementInput.z - tmp.x * gGui.state.movementInput.x;
+  if (gState.freecamMode == FC_ORIENT) {
+    // Combine forward vector and left vector.
+    delta = v4fnew(
+      gState.movementInput.x * +tmp.y,
+      gState.movementInput.y,
+      gState.movementInput.x * -tmp.x,
+      0.0f);
+    delta = v4fadd(delta, v4fscale(*dir, gState.movementInput.z));
 
     // Do not override the rotation matrix.
-    gGui.state.useMatrix = 0;
-  } else {
-    // Copy the rotation in-game to current state. Note that the roll angle
-    // is reserved.
-    gGui.state.rot.x = this->rotateXAnim;
-    gGui.state.rot.y = this->rotateYAnim;
-    // Roll angle.
-    if (gGui.state.freecamRoll)
-      gGui.state.rot.z += gGui.timeElapsedSecond
-        * gGui.state.freecamRollSpeed * -gGui.state.facingInput.z;
-    else
-      gGui.state.rot.z = 0;
-    eulerToRotation(gGui.state.rot, gGui.state.mat);
+    gState.useMatrix = 0;
+    gState.rot.z = 0;
+  } else if (gState.freecamMode == FC_AXIAL) {
+    // Rotate it by the movement input. Axial mode will ignore the roll angle.
+    delta.x = tmp.x * gState.movementInput.z + tmp.y * gState.movementInput.x;
+    delta.y = gState.movementInput.y;
+    delta.z = tmp.y * gState.movementInput.z - tmp.x * gState.movementInput.x;
 
-    // Combine forward vector and left vector. The default mode will ignore
-    // the vertical direction movement inputs.
-    delta = v4fscale(*dir, gGui.state.movementInput.z);
-    delta = v4fadd(delta, v4fscale(gGui.state.mat[0], -gGui.state.movementInput.x));
+    // Do not override the rotation matrix.
+    gState.useMatrix = 0;
+    gState.rot.z = 0;
+  } else if (gState.freecamMode == FC_FULLDIR) {
+    // Calculate rotation delta from hooked data.
+    if (gState.freecamRoll)
+      deltaRot.z = gState.facingInput.z * gState.freecamRollSpeed;
+    deltaRot.x = -gMouseDelta.x * gState.freecamSensitivity;
+    deltaRot.y = gMouseDelta.y * gState.freecamSensitivity;
+    deltaRot = v4fscale(deltaRot,
+      gGui.timeElapsedSecond);
+
+    // Calculate rotation matrix based on last frame.
+    eulerToRotationXYZ(deltaRot, (v4f *)&mat);
+    mat.row4 = v4fnew(0, 0, 0, 1);
+    m44mul((m44 *)gState.mat, &mat, (m44 *)gState.mat);
+
+    // Combine forward vector and left vector. The full-direction mode will use
+    // the foward vector we calculated, instead of the game.
+    delta = v4fscale(gState.mat[2], -gState.movementInput.z);
+    delta = v4fadd(delta, v4fscale(gState.mat[0], -gState.movementInput.x));
     delta = v4fnormalize(delta);
 
     // Override the rotation matrix to enable roll angle.
-    gGui.state.useMatrix = 1;
+    gState.useMatrix = 1;
   }
-  delta = v4fscale(delta, gGui.state.freecamSpeed * gGui.timeElapsedSecond);
+  delta = v4fscale(delta, gState.freecamSpeed * gGui.timeElapsedSecond);
 
-  if (gGui.state.freecamCollision) {
+  if (gState.freecamCollision) {
     dist = v4flen(delta) * 2.0f;
     if (
       fpvCheckCollision(
@@ -232,10 +270,10 @@ static i08 updatePropFreecam(SkyCameraProp *this) {
   }
 
   // Multiply by speed.
-  gGui.state.pos = v4fadd(
+  gState.pos = v4fadd(
     lastPos,
     delta);
-  *pos = gGui.state.pos;
+  *pos = gState.pos;
 
   return 1;
 }
@@ -243,15 +281,15 @@ static i08 updatePropFreecam(SkyCameraProp *this) {
 static i08 updatePropFPV(SkyCameraProp *this) {
   v4f *pos;//, *dir;
 
-  if (this->cameraType != gGui.state.cameraMode + 1)
+  if (this->cameraType != gState.cameraMode + 1)
     return 0;
 
   pos = &((SkyCamera *)this->unk_2_3[2])->pos;
   //dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
 
-  if (gGui.state.resetPosFlag) {
+  if (gState.resetPosFlag) {
     fpv_init(fpvCheckCollision, *pos, gravity);
-    gGui.state.resetPosFlag = 0;
+    gState.resetPosFlag = 0;
   }
 
   fpv_update(gGui.timeElapsedSecond);
@@ -264,9 +302,9 @@ static i08 updatePropFPV(SkyCameraProp *this) {
 /**
  * Calculate the rotation matrix and camera pos with gui data.
  */
-static void updatePropMain(SkyCameraProp *this) {
+static void updatePropMain(SkyCameraProp *this, u64 *context) {
   i64 qpc, inteval;
-  GUIState_t *guiState = &gGui.state;
+  GUIState_t *guiState = &gState;
   i08 doUpdate;
 
   if (!guiState->enable) {
@@ -287,7 +325,7 @@ static void updatePropMain(SkyCameraProp *this) {
   if (guiState->overrideMode == 0)
     doUpdate = updatePropSet(this);
   else if (guiState->overrideMode == 1)
-    doUpdate = updatePropFreecam(this);
+    doUpdate = updatePropFreecam(this, context);
   else if (guiState->overrideMode == 2)
     doUpdate = updatePropFPV(this);
 
@@ -299,7 +337,7 @@ static void updatePropMain(SkyCameraProp *this) {
  * copies them into the SkyCamera struct.
  */
 static void updateCameraMain(SkyCamera *this) {
-  GUIState_t *guiState = &gGui.state;
+  GUIState_t *guiState = &gState;
 
   if (!gDoUpdate)
     return;
@@ -346,7 +384,7 @@ static u64 SkyCameraProp__updateParams_Listener(SkyCameraProp *this, u64 context
   result = ((FnSkyCameraProp__updateParams)tramp.fn_SkyCameraProp__updateParams)(
     this, context);
 
-  updatePropMain(this);
+  updatePropMain(this, (u64 *)context);
 
   return result;
 }
@@ -368,7 +406,7 @@ static u64 SkyCameraProp_updateUI_Listener(
   i08 a9
 ) {
   u64 result;
-  if (gGui.state.noOriginalUi)
+  if (gState.noOriginalUi)
     // Disable original camera ui.
     return 0;
   result = ((FnSkyCameraProp_updateUI)tramp.fn_SkyCameraProp_updateUI)(
@@ -417,6 +455,7 @@ static u64 WhiskerCamera_update_Listener(
   u64 result;
   result = ((FnWhiskerCamera_update)tramp.fn_WhiskerCamera_update)(
     this, context);
+  gMouseDelta = this->mouseDelta;
   return result;
 }
 
@@ -437,11 +476,35 @@ static u64 SkyCamera_update_Listener(
   return result;
 }
 
+/**
+ * Detour function for MainCamera::_getdelta().
+ * 
+ * The original function calculates the mouse delta on last frame.
+ */
+static u64 MainCamera__getDelta_Listener(
+  u64 a1,
+  i08 *a2,
+  u64 a3,
+  u64 a4,
+  u64 a5,
+  int a6,
+  int a7
+) {
+  u64 result;
+  result = ((FnMainCamera__getDelta)tramp.fn_MainCamera__getDelta)(
+    a1, a2, a3, a4, a5, a6, a7);
+  if (a2[1])
+    gMouseDelta = *(v4f *)(a2 + 0x10);
+  else
+    gMouseDelta = v4fnew(0, 0, 0, 0);
+  return result;
+}
+
 // ----------------------------------------------
 // [SECTION] Initializations.
 // ----------------------------------------------
 
-static const void *detourFunc[8] = {
+static const void *detourFunc[9] = {
   SkyCameraProp__updateParams_Listener,
   SkyCameraProp_updateUI_Listener,
   NULL,
@@ -449,7 +512,8 @@ static const void *detourFunc[8] = {
   NULL,
   World_interactionTest_Listener,
   WhiskerCamera_update_Listener,
-  SkyCamera_update_Listener
+  SkyCamera_update_Listener,
+  MainCamera__getDelta_Listener
 };
 
 /**

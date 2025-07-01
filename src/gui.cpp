@@ -11,9 +11,14 @@
 #define CBV(v, b) ((v) &= ~(b))
 #define BTV(v, b) ((v) & (b))
 
-static const char *MODES[] = { "FirstPerson", "Front", "Placed" };
+// Pixel per degree.
+#define MOUSE_SENSITIVITY 1.0f
+
+static const char *MODES[] = { "FirstPerson", "Front", "Placed" }
+  , *FREECAMMODES[] = { "Orientation", "Axial", "Full-direction" };
 
 GUI_t gGui = {0};
+GUIState_t gState = {0};
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
   HWND hWnd,
@@ -40,7 +45,7 @@ static void gui_wndProcEx(
       *uBlock = io.WantCaptureMouse;
       return;
     case WM_KEYDOWN:
-      if (gGui.state.overrideMode == 1 && gGui.state.enable) {
+      if (gState.overrideMode == 1 && gState.enable) {
         if (
           wParam == 'W'
           || wParam == 'A'
@@ -175,61 +180,80 @@ static inline void gui_subMenuSet() {
   ImGui::SeparatorText("Set Camera Params");
 
   // Camera position input.
-  ImGui::Checkbox("##cb1", (bool *)&gGui.state.overridePos);
+  ImGui::Checkbox("##cb1", (bool *)&gState.overridePos);
   ImGui::SameLine();
-  ImGui::InputFloat3("Pos", (float *)&gGui.state.pos);
+  ImGui::InputFloat3("Pos", (float *)&gState.pos);
 
   // Camera rotation input.
-  ImGui::Checkbox("##cb2", (bool *)&gGui.state.overrideDir);
+  ImGui::Checkbox("##cb2", (bool *)&gState.overrideDir);
   ImGui::SameLine();
-  ImGui::InputFloat3("Rotation", (float *)&gGui.state.rot);
+  ImGui::InputFloat3("Rotation", (float *)&gState.rot);
 
   // Clamp camera facing.
-  gGui.state.rot.x = fmodf(gGui.state.rot.x, 360.0f);
-  gGui.state.rot.y = clamp(gGui.state.rot.y, -89.5f, 89.5f);
+  gState.rot.x = fmodf(gState.rot.x, 360.0f);
+  gState.rot.y = clamp(gState.rot.y, -89.5f, 89.5f);
 
   // Camera scale input.
-  ImGui::Checkbox("##cb3", (bool *)&gGui.state.overrideScale);
+  ImGui::Checkbox("##cb3", (bool *)&gState.overrideScale);
   ImGui::SameLine();
-  ImGui::DragFloat("Scale", &gGui.state.scale, .01f, 0.0f, 1.0f);
+  ImGui::DragFloat("Scale", &gState.scale, .01f, 0.0f, 1.0f);
 
   // Camera focus(blur) input.
-  ImGui::Checkbox("##cb4", (bool *)&gGui.state.overrideFocus);
+  ImGui::Checkbox("##cb4", (bool *)&gState.overrideFocus);
   ImGui::SameLine();
-  ImGui::DragFloat("Focus", &gGui.state.focus, .01f, 0.0f, 1.0f);
+  ImGui::DragFloat("Focus", &gState.focus, .01f, 0.0f, 1.0f);
 
   // Camera brightness input.
-  ImGui::Checkbox("##cb5", (bool *)&gGui.state.overrideBrightness);
+  ImGui::Checkbox("##cb5", (bool *)&gState.overrideBrightness);
   ImGui::SameLine();
-  ImGui::DragFloat("Brightness", &gGui.state.brightness, .01f, 0.0f, 1.0f);
+  ImGui::DragFloat("Brightness", &gState.brightness, .01f, 0.0f, 1.0f);
 }
 
 static inline void gui_subMenuFreecam() {
   ImGui::SeparatorText("Free camera");
-  ImGui::Checkbox("QE Roll", (bool *)&gGui.state.freecamRoll);
-  ImGui::BeginDisabled(!gGui.state.freecamRoll);
-  ImGui::DragFloat("Roll Speed", &gGui.state.freecamRollSpeed, .01f, 0, 10.0f);
+
+  ImGui::Combo(
+    "Mode",
+    &gState.freecamMode,
+    FREECAMMODES,
+    IM_ARRAYSIZE(FREECAMMODES));
+
+  ImGui::Checkbox("Check collision", (bool *)&gState.freecamCollision);
+
+  ImGui::BeginDisabled(gState.freecamMode == FC_FULLDIR);
+  if (gState.freecamMode == FC_FULLDIR)
+    gState.freecamRoll = 1;
+  ImGui::Checkbox("QE Roll", (bool *)&gState.freecamRoll);
   ImGui::EndDisabled();
-  ImGui::Checkbox("Axial", (bool *)&gGui.state.freecamAxial);
   gui_displayTips(
     true,
     "The camera won't move based on orientation when enabled this.");
-  ImGui::Checkbox("Check collision", (bool *)&gGui.state.freecamCollision);
-  ImGui::DragFloat("Speed", &gGui.state.freecamSpeed, .01f, 0, 100.0f);
+
+  ImGui::BeginDisabled(!gState.freecamRoll);
+  ImGui::DragFloat("Roll Speed", &gState.freecamRollSpeed, .01f, 0, 10.0f);
+  ImGui::EndDisabled();
+
+  ImGui::BeginDisabled(gState.freecamMode != FC_FULLDIR);
+  ImGui::DragFloat("Mouse sensitivity", &gState.freecamSensitivity, .01f, 0, 10.0f);
+  ImGui::EndDisabled();
+
+  ImGui::DragFloat("Speed", &gState.freecamSpeed, .01f, 0, 100.0f);
   if (ImGui::Button("Reset pos"))
-    gGui.state.resetPosFlag = 1;
+    gState.resetPosFlag = 1;
 }
 
 static inline void gui_subMenuFPV() {
   ImGui::SeparatorText("FPV");
   if (ImGui::Button("Reset pos"))
-    gGui.state.resetPosFlag = 1;
+    gState.resetPosFlag = 1;
 }
 
 /**
- * Handle keyboard input for freecam mode.
+ * Handle keyboard and mouse inputs for freecam mode.
  */
-static void gui_keyboardFreecam() {
+static void gui_inputFreecam() {
+  ImGuiIO &io = ImGui::GetIO();
+  ImVec2 mouseDelta = io.MouseDelta;
   v4f r = v4fnew(0.0f, 0.0f, 0.0f, 0.0f)
     , s = v4fnew(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -243,20 +267,24 @@ static void gui_keyboardFreecam() {
   if (ImGui::IsKeyDown(ImGuiKey_D))
     r.x -= 1.0f;
 
-  // Roll.
-  if (ImGui::IsKeyDown(ImGuiKey_Q))
-    s.z += 1.0f;
-  if (ImGui::IsKeyDown(ImGuiKey_E))
-    s.z -= 1.0f;
-
   // Up and down.
   if (ImGui::IsKeyDown(ImGuiKey_Space))
     r.y += 1.0f;
   if (ImGui::IsKeyDown(ImGuiKey_LeftShift))
     r.y -= 1.0f;
 
-  gGui.state.movementInput = v4fnormalize(r);
-  gGui.state.facingInput = s;
+  // Roll.
+  if (ImGui::IsKeyDown(ImGuiKey_Q))
+    s.z += 1.0f;
+  if (ImGui::IsKeyDown(ImGuiKey_E))
+    s.z -= 1.0f;
+
+  // Mouse.
+  s.x = mouseDelta.x / MOUSE_SENSITIVITY / 180.0f * PI_F;
+  s.y = mouseDelta.y / MOUSE_SENSITIVITY / 180.0f * PI_F;
+
+  gState.movementInput = r;
+  gState.facingInput = s;
 }
 
 /**
@@ -288,25 +316,25 @@ i08 gui_update() {
     );
 
     // General options.
-    if (ImGui::Checkbox("Take over", (bool *)&gGui.state.enable))
-      gGui.state.resetPosFlag = 1;
-    ImGui::Combo("Use mode", &gGui.state.cameraMode, MODES, IM_ARRAYSIZE(MODES));
-    ImGui::Checkbox("No UI", (bool *)&gGui.state.noOriginalUi);
+    if (ImGui::Checkbox("Take over", (bool *)&gState.enable))
+      gState.resetPosFlag = 1;
+    ImGui::Combo("Use mode", &gState.cameraMode, MODES, IM_ARRAYSIZE(MODES));
+    ImGui::Checkbox("No UI", (bool *)&gState.noOriginalUi);
     gui_displayTips(
       true,
       "Please adjust the parameters before select this item.");
 
-    ImGui::RadioButton("Set", &gGui.state.overrideMode, 0);
+    ImGui::RadioButton("Set", &gState.overrideMode, 0);
     ImGui::SameLine();
-    ImGui::RadioButton("Freecam", &gGui.state.overrideMode, 1);
+    ImGui::RadioButton("Freecam", &gState.overrideMode, 1);
     ImGui::SameLine();
-    ImGui::RadioButton("FPV", &gGui.state.overrideMode, 2);
+    ImGui::RadioButton("FPV", &gState.overrideMode, 2);
 
-    if (gGui.state.overrideMode == 0)
+    if (gState.overrideMode == 0)
       gui_subMenuSet();
-    if (gGui.state.overrideMode == 1)
+    if (gState.overrideMode == 1)
       gui_subMenuFreecam();
-    if (gGui.state.overrideMode == 2)
+    if (gState.overrideMode == 2)
       gui_subMenuFPV();
 
     // Overlay window FPS display.
@@ -316,8 +344,8 @@ i08 gui_update() {
   }
 
   // Handle keyboard input.
-  if (gGui.state.overrideMode == 1)
-    gui_keyboardFreecam();
+  if (gState.overrideMode == 1)
+    gui_inputFreecam();
 
   // Rendering.
   ImGui::EndFrame();

@@ -8,6 +8,10 @@
 
 #define WM_USER_EXIT (0x8000 + 1)
 
+#define FC_ORIENT (0x00)
+#define FC_AXIAL (0x01)
+#define FC_FULLDIR (0x02)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -40,7 +44,8 @@ typedef struct {
   // Freecam mode.
   f32 freecamSpeed;
   f32 freecamRollSpeed;
-  i08 freecamAxial;
+  f32 freecamSensitivity;
+  i32 freecamMode;
   i08 freecamCollision;
   i08 resetPosFlag;
   i08 freecamRoll;
@@ -54,7 +59,6 @@ typedef struct {
 typedef struct {
   HWND hWnd;
   HANDLE hInit;
-  GUIState_t state;
   i64 performFreq;
   i64 lastFrameCounter;
   f32 timeElapsedSecond;

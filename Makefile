@@ -15,8 +15,8 @@ BIN_TARGET = $(DIST_DIR)/$(TARGET)
 CC = gcc
 CXX = g++
 
-CFLAGS = -Wall -Wformat -Os -ffunction-sections -fdata-sections -static -flto -s -mavx -msse
-CFLAGS += -Wl,--gc-sections#,--version-script=$(VERSION_SCRIPT)
+CFLAGS = -Wall -Wformat -O3 -ffunction-sections -fdata-sections -static -flto -s -mavx -msse
+CFLAGS += -Wl,--gc-sections,--version-script=$(VERSION_SCRIPT)
 # Include ImGui.
 CFLAGS += -I./libraries/imgui-1.91.9b -I./libraries/imgui-1.91.9b/backends
 # Include MinHook.

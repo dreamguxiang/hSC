@@ -24,10 +24,13 @@ typedef union {
 
     // SkyCamera functions.
     void *fn_SkyCamera_update;
+
+    // MainCamera functions.
+    void *fn_MainCamera__getDelta;
   };
 
   // Array of functions.
-  void *functions[8];
+  void *functions[9];
 } SetupFunctions_t;
 
 i08 setupFuncWithSig(SetupFunctions_t *functions);

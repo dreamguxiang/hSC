@@ -90,6 +90,9 @@ typedef struct MainCamera {
 // contains components what we need.
 typedef struct {
   MainCamera super;
+  char unk_1[64];
+  v4f mouseDelta;
+  char unk_2[1456];
 } WhiskerCamera;
 
 typedef struct {
