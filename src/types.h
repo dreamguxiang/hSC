@@ -105,6 +105,8 @@ typedef struct {
   v4f dir;
 } SkyCamera;
 
+#define SkyCamera_getPropPtr(sc) ((SkyCameraProp *)((i08 *)(((SkyCamera *)(sc))->prop) - 0x88))
+
 typedef struct {
   v4f intersection;
   v4f normalize;

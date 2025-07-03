@@ -66,6 +66,12 @@ typedef struct {
   i08 isOpen;
 } GUI_t;
 
+typedef struct {
+  struct {
+    f32 mouseSensitivity;
+  } freecam;
+} GUIOptions_t;
+
 i08 gui_init();
 i08 gui_deinit();
 i08 gui_waitForInit();

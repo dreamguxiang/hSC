@@ -1,9 +1,9 @@
 #include <math.h>
+
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h" 
 #include "uglhook.h"
-
 #include "gui.h"
 
 #define clamp(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
@@ -19,6 +19,11 @@ static const char *MODES[] = { "FirstPerson", "Front", "Placed" }
 
 GUI_t gGui = {0};
 GUIState_t gState = {0};
+GUIOptions_t gOptions = {
+  .freecam = {
+    .mouseSensitivity = 2.0f
+  }
+};
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
   HWND hWnd,
@@ -248,6 +253,49 @@ static inline void gui_subMenuFPV() {
     gState.resetPosFlag = 1;
 }
 
+static inline void gui_windowMain() {
+  ImGuiIO &io = ImGui::GetIO();
+  (void)io;
+
+  // Title.
+  ImGui::Begin(
+    "hSC Menu",
+    nullptr,
+    ImGuiWindowFlags_None
+  );
+
+  // General options.
+  if (ImGui::Checkbox("Take over", (bool *)&gState.enable))
+    gState.resetPosFlag = 1;
+  ImGui::Combo("Use mode", &gState.cameraMode, MODES, IM_ARRAYSIZE(MODES));
+  ImGui::Checkbox("No UI", (bool *)&gState.noOriginalUi);
+  gui_displayTips(
+    true,
+    "Hide the original camera UI. Please adjust the parameters before select this item.");
+
+  ImGui::RadioButton("Set", &gState.overrideMode, 0);
+  ImGui::SameLine();
+  ImGui::RadioButton("Freecam", &gState.overrideMode, 1);
+  ImGui::SameLine();
+  ImGui::RadioButton("FPV", &gState.overrideMode, 2);
+
+  if (gState.overrideMode == 0)
+    gui_subMenuSet();
+  if (gState.overrideMode == 1)
+    gui_subMenuFreecam();
+  if (gState.overrideMode == 2)
+    gui_subMenuFPV();
+
+  // Overlay window FPS display.
+  ImGui::Text("Overlay %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
+  ImGui::End();
+}
+
+static inline void gui_windowSettings() {
+
+}
+
 /**
  * Handle keyboard and mouse inputs for freecam mode.
  */
@@ -291,9 +339,6 @@ static void gui_inputFreecam() {
  * Render ui and handle keyboard inputs.
  */
 i08 gui_update() {
-  ImGuiIO &io = ImGui::GetIO();
-  (void)io;
-
   if (GetAsyncKeyState(VK_INSERT) & 0x1)
     gGui.isOpen = !gGui.isOpen;
 
@@ -307,41 +352,8 @@ i08 gui_update() {
   ImGui::NewFrame();
 
   // Draw menus.
-  if (gGui.isOpen) {
-    // Title.
-    ImGui::Begin(
-      "hSC Menu",
-      nullptr,
-      ImGuiWindowFlags_None
-    );
-
-    // General options.
-    if (ImGui::Checkbox("Take over", (bool *)&gState.enable))
-      gState.resetPosFlag = 1;
-    ImGui::Combo("Use mode", &gState.cameraMode, MODES, IM_ARRAYSIZE(MODES));
-    ImGui::Checkbox("No UI", (bool *)&gState.noOriginalUi);
-    gui_displayTips(
-      true,
-      "Please adjust the parameters before select this item.");
-
-    ImGui::RadioButton("Set", &gState.overrideMode, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("Freecam", &gState.overrideMode, 1);
-    ImGui::SameLine();
-    ImGui::RadioButton("FPV", &gState.overrideMode, 2);
-
-    if (gState.overrideMode == 0)
-      gui_subMenuSet();
-    if (gState.overrideMode == 1)
-      gui_subMenuFreecam();
-    if (gState.overrideMode == 2)
-      gui_subMenuFPV();
-
-    // Overlay window FPS display.
-    ImGui::Text("Overlay %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-
-    ImGui::End();
-  }
+  if (gGui.isOpen)
+    gui_windowMain();
 
   // Handle keyboard input.
   if (gState.overrideMode == 1)
