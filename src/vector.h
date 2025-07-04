@@ -5,6 +5,10 @@
 
 #include "aliases.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define v2f V2F
 #define v3f V3F
 #define v4f V4F
@@ -297,5 +301,9 @@ static inline f32 v4flen(v4f a) {
 
   return _mm_cvtss_f32(v1);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

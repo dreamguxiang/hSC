@@ -6,9 +6,9 @@
 #include "gui.h"
 #include "camera.h"
 
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 // [SECTION] Declarations and definitions.
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 
 // Macros.
 #define OVERRIDE_2(cond, v1, v2) ((cond) ? ((v1) = (v2)) : ((v2) = (v1)))
@@ -36,9 +36,9 @@ static v4f gMouseDelta = {0};
 // Globale variables.
 u64 gSavedLevelContext = 0;
 
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 // [SECTION] Static helper functions.
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 
 /**
  * Calculate rotation matrix from euler angle, in the order of yaw, pitch,
@@ -99,9 +99,9 @@ static i08 fpvCheckCollision(
     return 0;
 }
 
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 // [SECTION] Camera update functions.
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 
 i08 updatePropSet(SkyCameraProp *this) {
   v4f *pos, *dir, *gsRot
@@ -170,7 +170,7 @@ i08 updatePropFreecam(SkyCameraProp *this) {
     , deltaRot = {0}
     , lastPos, delta;
   v2f tmp;
-  f32 dist;
+  f32 dist, t;
   m44 mat = {0};
   InteractionResult ir;
 
@@ -222,10 +222,14 @@ i08 updatePropFreecam(SkyCameraProp *this) {
     gState.rot.z = 0;
   } else if (gState.freecamMode == FC_FULLDIR) {
     // Calculate rotation delta from hooked data.
-    if (gState.freecamRoll)
-      deltaRot.z = gState.facingInput.z * gState.freecamRollSpeed;
-    deltaRot.x = -gMouseDelta.x * gState.freecamSensitivity;
-    deltaRot.y = gMouseDelta.y * gState.freecamSensitivity;
+    deltaRot.z = gState.facingInput.z * gState.freecamRotateSpeed;
+    deltaRot.x = -gMouseDelta.x * gOptions.general.mouseSensitivity;
+    deltaRot.y = gMouseDelta.y * gOptions.general.mouseSensitivity * gOptions.general.verticalSenseScale;
+    if (gOptions.freecam.swapRollYaw) {
+      t = deltaRot.z;
+      deltaRot.z = deltaRot.x;
+      deltaRot.x = t;
+    }
     deltaRot = v4fscale(deltaRot,
       gGui.timeElapsedSecond);
 
@@ -237,7 +241,6 @@ i08 updatePropFreecam(SkyCameraProp *this) {
     // Combine forward vector and left vector. The full-direction mode will use
     // the foward vector we calculated, instead of the game.
     delta = v4fscale(gState.mat[2], -gState.movementInput.z);
-    delta = v4fadd(delta, v4fscale(gState.mat[0], -gState.movementInput.x));
     delta = v4fnormalize(delta);
 
     // Override the rotation matrix to enable roll angle.
@@ -344,13 +347,15 @@ void updateCameraMain(SkyCamera *this) {
   }
 }
 
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 // [SECTION] Status update functions.
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 
 /**
  * Update the mouse delta, only called by the hook on MainCamera::_getdelta().
  */
 void updateMouseDelta(v4f delta) {
+  //gMouseDelta.x = gState.facingInput.x;
+  //gMouseDelta.y = gState.facingInput.y;
   gMouseDelta = delta;
 }

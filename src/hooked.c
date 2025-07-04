@@ -14,9 +14,9 @@
 // Defines.
 #define MH_SUCCESSED(v, s) ((v) |= (!(s)))
 
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 // [SECTION] Definitions and declarations.
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 
 // Typedefs.
 typedef u64 (__fastcall *FnSkyCameraProp_update)(SkyCameraProp *, u64);
@@ -37,6 +37,8 @@ typedef u64 (__fastcall *FnMainCamera__getDelta)(
 extern GUIState_t gState;
 // gSavedLevelContext defined in camera.c
 extern u64 gSavedLevelContext;
+// gMouseDelta defined in gui.cpp
+extern v4f gMouseDelta;
 
 // Static variables.
 static SetupFunctions_t gFunc;
@@ -44,7 +46,6 @@ static i08 gInit = 0;
 
 // Global variables.
 SetupFunctions_t gTramp = {0};
-v4f gMouseDelta;
 
 // ----------------------------------------------
 // [SECTION] Detour functions.
@@ -194,9 +195,9 @@ static u64 MainCamera__getDelta_Listener(
   return result;
 }
 
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 // [SECTION] Initializations.
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 
 static const void *detourFunc[9] = {
   SkyCameraProp__updateParams_Listener,

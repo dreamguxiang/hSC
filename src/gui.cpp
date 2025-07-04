@@ -20,10 +20,15 @@ static const char *MODES[] = { "FirstPerson", "Front", "Placed" }
 GUI_t gGui = {0};
 GUIState_t gState = {0};
 GUIOptions_t gOptions = {
+  .general = {
+    .mouseSensitivity = 1.0f,
+    .verticalSenseScale = 1.0f
+  },
   .freecam = {
-    .mouseSensitivity = 2.0f
+    .swapRollYaw = 0
   }
 };
+v4f gMouseDelta;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
   HWND hWnd,
@@ -225,22 +230,7 @@ static inline void gui_subMenuFreecam() {
 
   ImGui::Checkbox("Check collision", (bool *)&gState.freecamCollision);
 
-  ImGui::BeginDisabled(gState.freecamMode == FC_FULLDIR);
-  if (gState.freecamMode == FC_FULLDIR)
-    gState.freecamRoll = 1;
-  ImGui::Checkbox("QE Roll", (bool *)&gState.freecamRoll);
-  ImGui::EndDisabled();
-  gui_displayTips(
-    true,
-    "The camera won't move based on orientation when enabled this.");
-
-  ImGui::BeginDisabled(!gState.freecamRoll);
-  ImGui::DragFloat("Roll Speed", &gState.freecamRollSpeed, .01f, 0, 10.0f);
-  ImGui::EndDisabled();
-
-  ImGui::BeginDisabled(gState.freecamMode != FC_FULLDIR);
-  ImGui::DragFloat("Mouse sensitivity", &gState.freecamSensitivity, .01f, 0, 10.0f);
-  ImGui::EndDisabled();
+  ImGui::DragFloat("Roll Speed", &gState.freecamRotateSpeed, .01f, 0, 10.0f);
 
   ImGui::DragFloat("Speed", &gState.freecamSpeed, .01f, 0, 100.0f);
   if (ImGui::Button("Reset pos"))
@@ -253,16 +243,27 @@ static inline void gui_subMenuFPV() {
     gState.resetPosFlag = 1;
 }
 
+static inline void gui_navMain() {
+  if (ImGui::BeginMenuBar()) {
+    if (ImGui::BeginMenu("Edit")) {
+      ImGui::MenuItem("Preferences", NULL, (bool *)&gGui.showSettings);
+      ImGui::EndMenu();
+    }
+    ImGui::EndMenuBar();
+  }
+}
+
 static inline void gui_windowMain() {
   ImGuiIO &io = ImGui::GetIO();
   (void)io;
 
   // Title.
   ImGui::Begin(
-    "hSC Menu",
-    nullptr,
-    ImGuiWindowFlags_None
-  );
+    "hSC Main",
+    (bool *)&gGui.isOpen,
+    ImGuiWindowFlags_MenuBar);
+
+  gui_navMain();
 
   // General options.
   if (ImGui::Checkbox("Take over", (bool *)&gState.enable))
@@ -293,15 +294,44 @@ static inline void gui_windowMain() {
 }
 
 static inline void gui_windowSettings() {
+  ImGuiIO &io = ImGui::GetIO();
+  (void)io;
 
+  ImGui::Begin("hSC Settings", (bool *)&gGui.showSettings);
+
+  ImGui::SeparatorText("General settings");
+
+  ImGui::Text("Mouse sensitivity");
+  ImGui::DragFloat(
+    "##settingsDrag1",
+    &gOptions.general.mouseSensitivity,
+    0.01f,
+    0.0f,
+    10.0f);
+  ImGui::Text("Vertical sensitivity scale");
+  ImGui::DragFloat(
+    "##settingsDrag2",
+    &gOptions.general.verticalSenseScale,
+    0.01f,
+    0.0f,
+    2.0f);
+
+  ImGui::SeparatorText("Freecam settings");
+
+  ImGui::Text("Swap yaw and roll");
+  ImGui::Checkbox(
+    "##settingsCheckbox3",
+    (bool *)&gOptions.freecam.swapRollYaw);
+
+  ImGui::End();
 }
 
 /**
  * Handle keyboard and mouse inputs for freecam mode.
  */
 static void gui_inputFreecam() {
-  ImGuiIO &io = ImGui::GetIO();
-  ImVec2 mouseDelta = io.MouseDelta;
+  //ImGuiIO &io = ImGui::GetIO();
+  //ImVec2 mouseDelta = io.MouseDelta;
   v4f r = v4fnew(0.0f, 0.0f, 0.0f, 0.0f)
     , s = v4fnew(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -309,11 +339,15 @@ static void gui_inputFreecam() {
   if (ImGui::IsKeyDown(ImGuiKey_W))
     r.z += 1.0f;
   if (ImGui::IsKeyDown(ImGuiKey_A))
-    r.x += 1.0f;
+    gState.freecamMode != FC_FULLDIR
+      ? r.x += 1.0f
+      : s.z += 1.0f;
   if (ImGui::IsKeyDown(ImGuiKey_S))
     r.z -= 1.0f;
   if (ImGui::IsKeyDown(ImGuiKey_D))
-    r.x -= 1.0f;
+    gState.freecamMode != FC_FULLDIR
+      ? r.x -= 1.0f
+      : s.z -= 1.0f;
 
   // Up and down.
   if (ImGui::IsKeyDown(ImGuiKey_Space))
@@ -321,15 +355,13 @@ static void gui_inputFreecam() {
   if (ImGui::IsKeyDown(ImGuiKey_LeftShift))
     r.y -= 1.0f;
 
-  // Roll.
-  if (ImGui::IsKeyDown(ImGuiKey_Q))
-    s.z += 1.0f;
-  if (ImGui::IsKeyDown(ImGuiKey_E))
-    s.z -= 1.0f;
-
-  // Mouse.
+  // Mouse. Not used.
+  /*
   s.x = mouseDelta.x / MOUSE_SENSITIVITY / 180.0f * PI_F;
   s.y = mouseDelta.y / MOUSE_SENSITIVITY / 180.0f * PI_F;
+  */
+  s.x = gMouseDelta.x * gOptions.general.mouseSensitivity;
+  s.y = gMouseDelta.y * gOptions.general.mouseSensitivity * gOptions.general.verticalSenseScale;
 
   gState.movementInput = r;
   gState.facingInput = s;
@@ -339,7 +371,8 @@ static void gui_inputFreecam() {
  * Render ui and handle keyboard inputs.
  */
 i08 gui_update() {
-  if (GetAsyncKeyState(VK_INSERT) & 0x1)
+  // Press "~" key to show or hide.
+  if (GetAsyncKeyState(VK_OEM_3) & 0x1)
     gGui.isOpen = !gGui.isOpen;
 
   ImGuiStyle &style = ImGui::GetStyle();
@@ -354,6 +387,10 @@ i08 gui_update() {
   // Draw menus.
   if (gGui.isOpen)
     gui_windowMain();
+  else
+    gGui.showSettings = 0;
+  if (gGui.showSettings)
+    gui_windowSettings();
 
   // Handle keyboard input.
   if (gState.overrideMode == 1)

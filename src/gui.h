@@ -22,6 +22,7 @@ typedef struct {
   i08 noOriginalUi;
   i32 cameraMode;
   i32 overrideMode;
+  i08 resetPosFlag;
 
   // Inputs.
   v4f movementInput;
@@ -42,13 +43,10 @@ typedef struct {
   i08 overrideBrightness;
 
   // Freecam mode.
-  f32 freecamSpeed;
-  f32 freecamRollSpeed;
-  f32 freecamSensitivity;
   i32 freecamMode;
+  f32 freecamSpeed;
+  f32 freecamRotateSpeed;
   i08 freecamCollision;
-  i08 resetPosFlag;
-  i08 freecamRoll;
 
   // Pre-calculated rotation matrix and pos.
   i08 useMatrix;
@@ -64,11 +62,16 @@ typedef struct {
   f32 timeElapsedSecond;
   f32 dpiScale;
   i08 isOpen;
+  i08 showSettings;
 } GUI_t;
 
 typedef struct {
   struct {
     f32 mouseSensitivity;
+    f32 verticalSenseScale;
+  } general;
+  struct {
+    i08 swapRollYaw;
   } freecam;
 } GUIOptions_t;
 

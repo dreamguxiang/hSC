@@ -6,6 +6,10 @@
 #include "aliases.h"
 #include "vector.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define m44 M44
 
 typedef union {
@@ -58,5 +62,9 @@ static inline m44 *m44mul(m44 *r, m44 *a, m44 *b) {
 
   return r;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
