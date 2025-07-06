@@ -4,7 +4,7 @@
 #include <windows.h>
 
 #include "aliases.h"
-#include "vector.h"
+#include "mth/vector.h"
 
 typedef enum {
   FIRST = 1,

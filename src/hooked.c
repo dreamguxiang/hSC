@@ -7,8 +7,8 @@
 #include "hooked.h"
 #include "log.h"
 #include "setup.h"
-#include "vector.h"
-#include "matrix.h"
+#include "mth/vector.h"
+#include "mth/matrix.h"
 #include "camera.h"
 
 // Defines.
@@ -47,9 +47,9 @@ static i08 gInit = 0;
 // Global variables.
 SetupFunctions_t gTramp = {0};
 
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 // [SECTION] Detour functions.
-// ----------------------------------------------
+// ----------------------------------------------------------------------------
 
 /**
  * Detour function for SkyCameraProp::update().

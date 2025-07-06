@@ -3,7 +3,7 @@
 
 #include <windows.h>
 
-#include "vector.h"
+#include "mth/vector.h"
 #include "aliases.h"
 
 #define WM_USER_EXIT (0x8000 + 1)

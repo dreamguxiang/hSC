@@ -242,7 +242,7 @@ static inline v4f v4fprojection(v4f a, v4f b) {
   v3 = _mm_dp_ps(v2, v2, 0xFF);
   zero = _mm_setzero_ps();
   // scale = dot(a, b) / dot(b, b)
-  scale = _mm_div_ps(v1, v2);
+  scale = _mm_div_ps(v1, v3);
   // Avoid divide by 0.
   mask = _mm_cmpneq_ps(v3, zero);
   scale = _mm_and_ps(scale, mask);

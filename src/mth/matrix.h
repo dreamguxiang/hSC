@@ -4,7 +4,7 @@
 #include <immintrin.h>
 
 #include "aliases.h"
-#include "vector.h"
+#include "mth/vector.h"
 
 #ifdef __cplusplus
 extern "C" {

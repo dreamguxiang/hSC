@@ -4,7 +4,7 @@
 #include "MinHook.h"
 
 #include "types.h"
-#include "vector.h"
+#include "mth/vector.h"
 #include "gui.h"
 #include "hooked.h"
 #include "log.h"

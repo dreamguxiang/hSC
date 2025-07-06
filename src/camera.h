@@ -2,7 +2,7 @@
 #define __CAMERA_H__
 
 #include "aliases.h"
-#include "vector.h"
+#include "mth/vector.h"
 #include "types.h"
 
 void updatePropMain(SkyCameraProp *);

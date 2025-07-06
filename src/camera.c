@@ -1,10 +1,11 @@
 #include <math.h>
 
-#include "matrix.h"
+#include "mth/matrix.h"
 #include "setup.h"
 #include "fpv.h"
 #include "gui.h"
 #include "camera.h"
+#include "aabb.h"
 
 // ----------------------------------------------------------------------------
 // [SECTION] Declarations and definitions.
@@ -85,18 +86,56 @@ static inline void eulerToRotationXYZ(v4f euler, v4f *matrix) {
  * 
  * The pointer passed into this function must be a local variable address.
  */
-static i08 fpvCheckCollision(
-  v4f *origin,
-  v4f *dir,
-  f32 len,
-  v4f *a5,
-  i08 *buf
+ i08 fpvCheckCollision(
+  AABB_t *aabb,
+  v4f *delta
 ) {
-  if (gSavedLevelContext && gTramp.fn_Level_interactionTest) {
-    return ((FnWorld_interactionTest)gTramp.fn_Level_interactionTest)(
-      gSavedLevelContext, origin, dir, len, a5, buf);
-  } else
+  u08 result = 0
+    , done = 0;
+  v4f vec = *delta
+    , vertices[8]
+    , origin, dir;
+  f32 len;
+  i32 iter;
+  InteractionResult ir;
+
+  if (!gSavedLevelContext || !gTramp.fn_Level_interactionTest)
     return 0;
+
+  aabb_getAllVertices(aabb, vertices);
+  dir = v4fnormalize(vec);
+  len = v4flen(vec);
+
+  for (i32 i = 0; i < 8; i++) {
+    iter = 0;
+    origin = vertices[i];
+
+    while (
+      ((FnWorld_interactionTest)gTramp.fn_Level_interactionTest)(
+        gSavedLevelContext, &origin, &dir, len, NULL, (i08 *)&ir)
+    ) {
+      vec = v4fsub(vec, v4fprojection(vec, ir.normalize));
+      dir = v4fnormalize(vec);
+      len = v4flen(vec);
+
+      result = 1;
+      if (len < 0.0001) {
+        done = 1;
+        break;
+      }
+
+      iter++;
+      if (iter >= 3)
+        break;
+    }
+
+    if (done)
+      break;
+  }
+
+  *delta = vec;
+
+  return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -166,13 +205,14 @@ i08 updatePropSet(SkyCameraProp *this) {
 }
 
 i08 updatePropFreecam(SkyCameraProp *this) {
-  v4f *pos, *dir
-    , deltaRot = {0}
+  v4f deltaRot = {0}
+    , size = {0.1f, 0.1f, 0.1f, 0.1f}
+    , *pos, *dir
     , lastPos, delta;
   v2f tmp;
-  f32 dist, t;
+  f32 t;
   m44 mat = {0};
-  InteractionResult ir;
+  AABB_t aabb;
 
   if (this->cameraType != gState.cameraMode + 1)
     return 0;
@@ -225,11 +265,13 @@ i08 updatePropFreecam(SkyCameraProp *this) {
     deltaRot.z = gState.facingInput.z * gState.freecamRotateSpeed;
     deltaRot.x = -gMouseDelta.x * gOptions.general.mouseSensitivity;
     deltaRot.y = gMouseDelta.y * gOptions.general.mouseSensitivity * gOptions.general.verticalSenseScale;
+
     if (gOptions.freecam.swapRollYaw) {
       t = deltaRot.z;
       deltaRot.z = deltaRot.x;
       deltaRot.x = t;
     }
+
     deltaRot = v4fscale(deltaRot,
       gGui.timeElapsedSecond);
 
@@ -249,16 +291,9 @@ i08 updatePropFreecam(SkyCameraProp *this) {
   delta = v4fscale(delta, gState.freecamSpeed * gGui.timeElapsedSecond);
 
   if (gState.freecamCollision) {
-    dist = v4flen(delta) * 2.0f;
-    if (
-      fpvCheckCollision(
-        &lastPos,
-        &delta,
-        dist < 0.1 ? 0.1 : dist,
-        NULL,
-        (i08 *)&ir)
-    )
-      delta = v4fsub(delta, v4fprojection(delta, ir.normalize));
+    aabb.lower = v4fsub(gState.pos, size);
+    aabb.upper = v4fadd(gState.pos, size);
+    fpvCheckCollision(&aabb, &delta);
   }
 
   // Multiply by speed.
@@ -280,7 +315,7 @@ i08 updatePropFPV(SkyCameraProp *this) {
   //dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
 
   if (gState.resetPosFlag) {
-    fpv_init(fpvCheckCollision, *pos, gravity);
+    //fpv_init(fpvCheckCollision, *pos, gravity);
     gState.resetPosFlag = 0;
   }
 
