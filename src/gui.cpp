@@ -89,7 +89,7 @@ i08 gui_waitForDll() {
     Sleep(100);
     ctr++;
     // Wait for 30 seconds.
-    if (ctr > 300000)
+    if (ctr > 300)
       return 0;
   }
   return 1;
