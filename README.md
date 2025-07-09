@@ -35,6 +35,11 @@
 
 ## 三、编译方式
 &emsp;本软件使用mingw64-15.1.0编译。下载仓库release界面下对应版本的Source Code (.zip)，解压后在Makefile同目录下新建名为dist的文件夹，运行`mingw32-make.exe`即可。首次编译需运行`mingw32-make.exe all`编译库文件。<br>
-&emsp;本软件不保证可在更低版本的MinGW或低于Win10 22H2的操作系统上编译运行。如有兼容性问题请通过邮件联系。<br>
+&emsp;本软件不保证可在其他版本的MinGW上正常编，或在低于Win10 22H2、高于Win11 24H2的操作系统上正常运行。如有兼容性问题请通过邮件联系。<br>
 &emsp;本软件使用的MinHook经过修改以解决可能由光遇国服的VMP保护导致的hook失败，ImGui经过修改以允许在更新的MinGW SDK下编译。<br>
 &emsp;**请勿使用非仓库内提供的第三方库版本。**
+
+## 四、额外许可声明
+&emsp;本软件在除[LICENSE](https://github.com/HTMonkeyG/hSC/blob/main/LICENSE)中声明内容之外，还遵循以下声明：<br>
+&emsp;《光·遇》、《Sky光·遇》的一切合法权益（包括但不限于使用本软件产生的游戏内图片与视频）归属于网易与ThatGameCompany，且适用于其对应用户条约与服务协议。<br>
+&emsp;本软件和相关文档文件不是网易及ThatGameCompany的官方产品，未经上述二者批准或与上述二者无关。<br>
