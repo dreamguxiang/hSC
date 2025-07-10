@@ -1,3 +1,5 @@
+MAKEFLAGS += -s
+
 CXX = g++
 AR = ar
 

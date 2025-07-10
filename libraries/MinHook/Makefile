@@ -15,23 +15,23 @@ all: MinHook.dll libMinHook.dll.a libMinHook.a
 -include $(DEPS)
 
 libMinHook.a: $(OBJS)
-	$(AR) r $@ $^
+	@$(AR) rcs $@ $^
 libMinHook.dll.a: MinHook.dll dll_resources/MinHook.def
-	$(DLLTOOL) --dllname MinHook.dll --input-def dll_resources/MinHook.def --output-lib $@
+	@$(DLLTOOL) --dllname MinHook.dll --input-def dll_resources/MinHook.def --output-lib $@
 MinHook.dll: $(OBJS) dll_resources/MinHook.res dll_resources/MinHook.def
-	$(CCLD) -o $@ -shared $(LDFLAGS) $^
+	@$(CCLD) -o $@ -shared $(LDFLAGS) $^
 
 .rc.res:
-	$(WINDRES) -o $@ --input-format=rc --output-format=coff $<
+	@$(WINDRES) -o $@ --input-format=rc --output-format=coff $<
 .c.o:
-	$(CC) -o $@ -c -MMD -MP $(INCS) $(CFLAGS) $<
+	@$(CC) -o $@ -c -MMD -MP $(INCS) $(CFLAGS) $<
 
 clean:
-	-del src\*.o
-	-del MinHook.dll
-	-del libMinHook.dll.a
-	-del libMinHook.a
-	-del dll_resources\MinHook.res
+	-@del src\*.o
+	-@del MinHook.dll
+	-@del libMinHook.dll.a
+	-@del libMinHook.a
+	-@del dll_resources\MinHook.res
 
 .PHONY: clean
 .SUFFIXES: .rc .res

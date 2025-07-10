@@ -1,4 +1,4 @@
-MAKEFLAGS += -s -j4
+MAKEFLAGS += -s
 
 SRC_DIR = ./src
 
@@ -15,10 +15,10 @@ CFLAGS += -I../kiero
 .PHONY: clean test
 
 libuglhook.a: $(CPP_OBJ)
-	$(AR) rcs $@ $^ 
+	@$(AR) rcs $@ $^ 
 
 $(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
-	$(CXX) $(CFLAGS) -c $< -o $@
+	@$(CXX) $(CFLAGS) -c $< -o $@
 
 test:
 	make -C .\test
