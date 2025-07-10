@@ -1,7 +1,7 @@
 # hSC Plugin
 &emsp;**简体中文** | [English](https://github.com/HTMonkeyG/hSC/blob/main/README-en_US.md)
 
-&emsp;hSC插件是为光遇国服PC开发的摄像机修改插件。
+&emsp;hSC插件是为光遇PC开发的摄像机修改插件。
 该插件集成坐标修改、灵魂出窍、航拍运镜于一体，为景点拍摄、视频录制等提供辅助。
 
 **删除线内功能为开发中功能。本行粗体字被移除前该仓库所有特性均不稳定。**
