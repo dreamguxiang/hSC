@@ -30,40 +30,6 @@ namespace D3D12Hooks {
   extern UINT gBufferCount;
   extern FrameContext *gFrameContext;
   extern bool gInit;
-  
-  /*extern PresentFnD3D12 oPresentD3D12;
-  extern DrawInstancedFnD3D12 oDrawInstancedD3D12;
-  extern DrawIndexedInstancedFnD3D12 oDrawIndexedInstancedD3D12;
-  extern ReleaseFnD3D12 oReleaseD3D12;
-  extern void (*oExecuteCommandListsD3D12)(ID3D12CommandQueue *, UINT, ID3D12CommandList *);
-  extern HRESULT (*oSignalD3D12)(ID3D12CommandQueue *, ID3D12Fence *, UINT64);
-
-  extern HRESULT STDMETHODCALLTYPE hookPresentD3D12(
-    IDXGISwapChain3 *pSwapChain,
-    UINT SyncInterval,
-    UINT Flags);
-  extern void STDMETHODCALLTYPE hookkDrawInstancedD3D12(
-    ID3D12GraphicsCommandList *dCommandList,
-    UINT VertexCountPerInstance,
-    UINT InstanceCount,
-    UINT StartVertexLocation,
-    UINT StartInstanceLocation);
-  extern void STDMETHODCALLTYPE hookDrawIndexedInstancedD3D12(
-    ID3D12GraphicsCommandList *dCommandList,
-    UINT IndexCount,
-    UINT InstanceCount,
-    UINT StartIndex,
-    INT BaseVertex);
-  extern void STDMETHODCALLTYPE hookExecuteCommandListsD3D12(
-    ID3D12CommandQueue *queue,
-    UINT NumCommandLists,
-    ID3D12CommandList *ppCommandLists);
-  extern HRESULT STDMETHODCALLTYPE hookSignalD3D12(
-    ID3D12CommandQueue *queue,
-    ID3D12Fence *fence,
-    UINT64 value);
-  extern ULONG hookReleaseD3D12(IDXGISwapChain3 *pSwapChain);
-  extern void STDMETHODCALLTYPE release();*/
 
   /**
    * Install hooks with given callback functions.

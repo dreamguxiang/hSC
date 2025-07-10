@@ -28,7 +28,6 @@ CFLAGS += -I./libraries/kiero
 CFLAGS += -I./libraries/UGLHook/src
 
 LFLAGS = -lgdi32 -ld3d12 -ldwmapi -ld3dcompiler -lstdc++
-LFLAGS += -L./libraries/kiero -lkiero
 LFLAGS += -L./libraries/MinHook -lMinHook
 LFLAGS += -L./libraries/imgui-1.91.9b -limgui -limgui_impl_win32 -limgui_impl_dx12
 LFLAGS += -L./libraries/UGLHook -luglhook
@@ -62,10 +61,8 @@ libs:
 	-@make -s -C ./libraries/imgui-1.91.9b all
 	-@make -s -C ./libraries/MinHook libMinHook.a
 	-@make -s -C ./libraries/UGLHook
-	-@make -s -C ./libraries/kiero
 
 clean_libs:
 	-@make -s -C ./libraries/imgui-1.91.9b clean
-	-@make -s -C ./libraries/kiero clean
 	-@make -s -C ./libraries/UGLHook clean
 	-@make -s -C ./libraries/MinHook clean

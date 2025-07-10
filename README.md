@@ -41,5 +41,5 @@
 
 ## 四、额外许可声明
 &emsp;本软件在除[LICENSE](https://github.com/HTMonkeyG/hSC/blob/main/LICENSE)中声明内容之外，还遵循以下声明：<br>
-&emsp;《光·遇》、《Sky光·遇》的一切合法权益（包括但不限于使用本软件产生的游戏内图片与视频）归属于网易与ThatGameCompany，且适用于其对应用户条约与服务协议。<br>
+&emsp;《光·遇》、《Sky光·遇》的一切合法权益（包括但不限于使用本软件产生的游戏内图片、音视频）归属于网易与ThatGameCompany，且适用于其对应用户条约与服务协议。<br>
 &emsp;本软件和相关文档文件不是网易及ThatGameCompany的官方产品，未经上述二者批准或与上述二者无关。<br>

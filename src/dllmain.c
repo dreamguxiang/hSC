@@ -4,11 +4,12 @@ LPVOID baseAddr;
 
 static DWORD WINAPI onAttach(LPVOID lpParam) {
   i32 s;
+  DWORD le;
 
   // Wait for the dx12 to be loaded.
-  s = gui_waitForDll();
+  s = gui_waitForDll(&le);
   if (!s) {
-    LOGEF("dxgi.dll or d3d12.dll load timed out.\n");
+    LOGEF("dxgi.dll or d3d12.dll load timed out: %d\n", le);
     return 0;
   }
 

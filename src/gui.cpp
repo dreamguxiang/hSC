@@ -5,6 +5,7 @@
 #include "imgui_impl_dx12.h" 
 #include "uglhook.h"
 #include "gui.h"
+#include "log.h"
 
 #define clamp(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
 #define SBV(v, b) ((v) |= (b))
@@ -83,14 +84,16 @@ static void gui_wndProcEx(
 /**
  * Wait for the dll to be loaded.
  */
-i08 gui_waitForDll() {
+i08 gui_waitForDll(DWORD *lastError) {
   i32 ctr = 0;
   while (!GetModuleHandleA("dxgi.dll") || !GetModuleHandleA("d3d12.dll")) {
     Sleep(100);
     ctr++;
     // Wait for 30 seconds.
-    if (ctr > 300)
+    if (ctr > 300) {
+      *lastError = GetLastError();
       return 0;
+    }
   }
   return 1;
 }
@@ -115,7 +118,7 @@ i08 gui_init() {
       io.Fonts->AddFontDefault();
       io.IniFilename = NULL;
 
-      ImGuiStyle& style = ImGui::GetStyle();
+      ImGuiStyle &style = ImGui::GetStyle();
       dpiScale = ImGui_ImplWin32_GetDpiScaleForHwnd(sDesc->OutputWindow);
       style.ScaleAllSizes(dpiScale);
       io.FontGlobalScale = dpiScale;

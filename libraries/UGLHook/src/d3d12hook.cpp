@@ -3,12 +3,14 @@
 #include <dxgi1_4.h>
 #include <d3d12.h>
 
+#include "MinHook.h"
+
+#include "uglhook.h"
 #include "d3d12hook.h"
 #include "globals.h"
-#include "kiero.h"
 
 namespace D3D12Hooks {
-  typedef long (STDMETHODCALLTYPE *PresentFnD3D12)(IDXGISwapChain *, UINT, UINT);
+  typedef long (STDMETHODCALLTYPE *PresentFnD3D12)(IDXGISwapChain3 *, UINT, UINT);
   typedef void (STDMETHODCALLTYPE *DrawInstancedFnD3D12)(ID3D12GraphicsCommandList *, UINT, UINT, UINT, UINT);
   typedef void (STDMETHODCALLTYPE *DrawIndexedInstancedFnD3D12)(ID3D12GraphicsCommandList *, UINT, UINT, UINT, INT);
   typedef ULONG (STDMETHODCALLTYPE *ReleaseFnD3D12)(IDXGISwapChain3 *);
@@ -18,13 +20,20 @@ namespace D3D12Hooks {
   static DrawInstancedFnD3D12 oDrawInstancedD3D12;
   static DrawIndexedInstancedFnD3D12 oDrawIndexedInstancedD3D12;
   static ReleaseFnD3D12 oReleaseD3D12;
-  static void (*oExecuteCommandListsD3D12)(ID3D12CommandQueue*, UINT, ID3D12CommandList*);
-  static HRESULT (*oSignalD3D12)(ID3D12CommandQueue*, ID3D12Fence*, UINT64);
+  static void (*oExecuteCommandListsD3D12)(ID3D12CommandQueue *, UINT, ID3D12CommandList *);
+  static HRESULT (*oSignalD3D12)(ID3D12CommandQueue *, ID3D12Fence *, UINT64);
+
+  // Static data.
+  static void *hookedFunctions[6] = {0};
+  static CRITICAL_SECTION critical = {0};
 
   // Callbacks.
   static InitCB cbInit = nullptr;
   static PresentCB cbPresent = nullptr;
   static DeinitCB cbDeinit = nullptr;
+
+  // User specified data.
+  static void *pUser = nullptr;
 
   IDXGISwapChain3 *gSavedSwapChain = nullptr;
   ID3D12Device *gDevice = nullptr;
@@ -38,11 +47,9 @@ namespace D3D12Hooks {
   FrameContext *gFrameContext = nullptr;
   bool gInit = false;
 
-  static void *pUser = nullptr;
-
   // Functions.
-  bool createAllFrom(IDXGISwapChain3* pSwapChain) {
-    if (!SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D12Device), (void**)&gDevice)))
+  bool createAllFrom(IDXGISwapChain3 *pSwapChain) {
+    if (!SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D12Device), (void **)&gDevice)))
       return false;
 
     if (!UniHookGlobals::mainWindow)
@@ -52,10 +59,7 @@ namespace D3D12Hooks {
 
     DXGI_SWAP_CHAIN_DESC sdesc;
     pSwapChain->GetDesc(&sdesc);
-    //sdesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    //sdesc.OutputWindow = UniHookGlobals::mainWindow;
-    //sdesc.Windowed = ((GetWindowLongPtr(UniHookGlobals::mainWindow, GWL_STYLE) & WS_POPUP) != 0) ? false : true;
-
+    
     gBufferCount = sdesc.BufferCount;
     gFrameContext = new FrameContext[gBufferCount];
 
@@ -75,7 +79,12 @@ namespace D3D12Hooks {
       gFrameContext[i].commandAllocator = allocator;
 
     if (
-      gDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator, NULL, IID_PPV_ARGS(&gCommandList)) != S_OK
+      gDevice->CreateCommandList(
+        0,
+        D3D12_COMMAND_LIST_TYPE_DIRECT,
+        allocator,
+        NULL,
+        IID_PPV_ARGS(&gCommandList)) != S_OK
       || gCommandList->Close() != S_OK
     )
       return false;
@@ -101,15 +110,19 @@ namespace D3D12Hooks {
       rtvHandle.ptr += rtvDescriptorSize;
     }
 
+    EnterCriticalSection(&critical);
     if (cbInit)
       cbInit(&sdesc, pUser);
+    LeaveCriticalSection(&critical);
 
     return true;
   }
 
   void clearAll() {
+    EnterCriticalSection(&critical);
     if (cbDeinit)
       cbDeinit(pUser);
+    LeaveCriticalSection(&critical);
 
     for (UINT i = 0; i < gBufferCount; i++) {
       SafeRelease(&gFrameContext[i].mainRenderTargetResource);
@@ -127,7 +140,7 @@ namespace D3D12Hooks {
   }
 
   HRESULT STDMETHODCALLTYPE hookPresentD3D12(
-    IDXGISwapChain3* pSwapChain,
+    IDXGISwapChain3 *pSwapChain,
     UINT SyncInterval,
     UINT Flags
   ) {
@@ -141,8 +154,10 @@ namespace D3D12Hooks {
       if (gCommandQueue == nullptr)
         return oPresentD3D12(pSwapChain, SyncInterval, Flags);
 
+      EnterCriticalSection(&critical);
       if (cbPresent)
         cbPresent(pUser);
+      LeaveCriticalSection(&critical);
     }
 
     return oPresentD3D12(pSwapChain, SyncInterval, Flags);
@@ -179,9 +194,9 @@ namespace D3D12Hooks {
   }
 
   void STDMETHODCALLTYPE hookExecuteCommandListsD3D12(
-    ID3D12CommandQueue* queue,
+    ID3D12CommandQueue *queue,
     UINT NumCommandLists,
-    ID3D12CommandList* ppCommandLists
+    ID3D12CommandList *ppCommandLists
   ) {
     if (!gCommandQueue)
       gCommandQueue = queue;
@@ -211,27 +226,204 @@ namespace D3D12Hooks {
   }
 
   bool init(InitCB init, PresentCB present, DeinitCB deinit, void *lpUser) {
-    if (kiero::init(kiero::RenderType::D3D12) != kiero::Status::Success)
+    HWND hookedWnd;
+    HMODULE dxgiDll
+      , d3d12Dll;
+    FARPROC fnCreateDXGIFactory
+      , fnD3D12CreateDevice;
+    IDXGIFactory *factory;
+    IDXGIAdapter *adapter;
+    ID3D12Device *device;
+    ID3D12CommandQueue *commandQueue;
+    ID3D12CommandAllocator *commandAllocator;
+    ID3D12GraphicsCommandList *commandList;
+    IDXGISwapChain *swapChain;
+
+    WNDCLASSEXA windowClass;
+    windowClass.cbSize = sizeof(WNDCLASSEX);
+    windowClass.style = CS_HREDRAW | CS_VREDRAW;
+    windowClass.lpfnWndProc = DefWindowProc;
+    windowClass.cbClsExtra = 0;
+    windowClass.cbWndExtra = 0;
+    windowClass.hInstance = GetModuleHandle(NULL);
+    windowClass.hIcon = NULL;
+    windowClass.hCursor = NULL;
+    windowClass.hbrBackground = NULL;
+    windowClass.lpszMenuName = NULL;
+    windowClass.lpszClassName = "UGLHookWnd";
+    windowClass.hIconSm = NULL;
+
+    ::InitializeCriticalSection(&critical);
+
+    if (!::RegisterClassExA(&windowClass) && ::GetLastError() != ERROR_ALREADY_EXISTS)
       return false;
+
+    hookedWnd = ::CreateWindowA(
+      windowClass.lpszClassName,
+      "UGLH_DX12",
+      WS_OVERLAPPEDWINDOW,
+      0, 0, 100, 100,
+      nullptr, nullptr,
+      windowClass.hInstance,
+      nullptr);
     
+    if (!hookedWnd)
+      return false;
+
+    dxgiDll = ::GetModuleHandleA("dxgi.dll");
+    d3d12Dll = ::GetModuleHandleA("d3d12.dll");
+    if (!dxgiDll || !d3d12Dll) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    fnCreateDXGIFactory = ::GetProcAddress(dxgiDll, "CreateDXGIFactory");
+    if (!fnCreateDXGIFactory) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    if (((long (__stdcall *)(const IID&, void **))(fnCreateDXGIFactory))(__uuidof(IDXGIFactory), (void**)&factory) < 0) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    if (factory->EnumAdapters(0, &adapter) == DXGI_ERROR_NOT_FOUND) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    fnD3D12CreateDevice = ::GetProcAddress(d3d12Dll, "D3D12CreateDevice");
+    if (!fnD3D12CreateDevice) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    if (((long (__stdcall *)(IUnknown *, D3D_FEATURE_LEVEL, const IID&, void **))(fnD3D12CreateDevice))(adapter, D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), (void**)&device) < 0) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    D3D12_COMMAND_QUEUE_DESC queueDesc;
+    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    queueDesc.Priority = 0;
+    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    queueDesc.NodeMask = 0;
+
+    if (device->CreateCommandQueue(&queueDesc, __uuidof(ID3D12CommandQueue), (void **)&commandQueue) < 0) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    if (device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(ID3D12CommandAllocator), (void **)&commandAllocator) < 0) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    if (device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator, nullptr, __uuidof(ID3D12GraphicsCommandList), (void **)&commandList) < 0) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    DXGI_RATIONAL refreshRate;
+    refreshRate.Numerator = 60;
+    refreshRate.Denominator = 1;
+
+    DXGI_MODE_DESC bufferDesc;
+    bufferDesc.Width = 100;
+    bufferDesc.Height = 100;
+    bufferDesc.RefreshRate = refreshRate;
+    bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+
+    DXGI_SAMPLE_DESC sampleDesc;
+    sampleDesc.Count = 1;
+    sampleDesc.Quality = 0;
+
+    DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+    swapChainDesc.BufferDesc = bufferDesc;
+    swapChainDesc.SampleDesc = sampleDesc;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.BufferCount = 2;
+    swapChainDesc.OutputWindow = hookedWnd;
+    swapChainDesc.Windowed = 1;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+    if (factory->CreateSwapChain(commandQueue, &swapChainDesc, &swapChain) < 0) {
+      ::DestroyWindow(hookedWnd);
+      ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
+      return false;
+    }
+
+    EnterCriticalSection(&critical);
     cbInit = init;
     cbPresent = present;
     cbDeinit = deinit;
     pUser = lpUser;
+    LeaveCriticalSection(&critical);
 
-    kiero::bind(54, (void**)&oExecuteCommandListsD3D12, (void *)hookExecuteCommandListsD3D12);
-    kiero::bind(58, (void**)&oSignalD3D12, (void *)hookSignalD3D12);
-    kiero::bind(84, (void**)&oDrawInstancedD3D12, (void *)hookkDrawInstancedD3D12);
-    kiero::bind(85, (void**)&oDrawIndexedInstancedD3D12, (void *)hookDrawIndexedInstancedD3D12);
-    kiero::bind(134, (void **)&oReleaseD3D12, (void *)hookReleaseD3D12);
-    kiero::bind(140, (void**)&oPresentD3D12, (void *)hookPresentD3D12);
+    hookedFunctions[0] = (*(void ***)commandQueue)[10];
+    hookedFunctions[1] = (*(void ***)commandQueue)[14];
+    hookedFunctions[2] = (*(void ***)commandList)[12];
+    hookedFunctions[3] = (*(void ***)commandList)[13];
+    hookedFunctions[4] = (*(void ***)swapChain)[2];
+    hookedFunctions[5] = (*(void ***)swapChain)[8];
+
+    MH_Initialize();
+    MH_CreateHook(hookedFunctions[0], (void *)hookExecuteCommandListsD3D12, (void **)&oExecuteCommandListsD3D12);
+    MH_CreateHook(hookedFunctions[1], (void *)hookSignalD3D12, (void **)&oSignalD3D12);
+    MH_CreateHook(hookedFunctions[2], (void *)hookkDrawInstancedD3D12, (void **)&oDrawInstancedD3D12);
+    MH_CreateHook(hookedFunctions[3], (void *)hookDrawIndexedInstancedD3D12, (void **)&oDrawIndexedInstancedD3D12);
+    MH_CreateHook(hookedFunctions[4], (void *)hookReleaseD3D12, (void **)&oReleaseD3D12);
+    MH_CreateHook(hookedFunctions[5], (void *)hookPresentD3D12, (void **)&oPresentD3D12);
+
+    for (int i = 0; i < 6; i++)
+      MH_EnableHook(hookedFunctions[i]);
+
+    device->Release();
+    device = nullptr;
+
+    commandQueue->Release();
+    commandQueue = nullptr;
+
+    commandAllocator->Release();
+    commandAllocator = nullptr;
+
+    commandList->Release();
+    commandList = nullptr;
+
+    swapChain->Release();
+    swapChain = nullptr;
+
+    ::DestroyWindow(hookedWnd);
+    ::UnregisterClassA(windowClass.lpszClassName, windowClass.hInstance);
 
     return true;
   }
 
   bool deinit() {
     clearAll();
-    kiero::shutdown();
+    for (int i = 0; i < 6; i++) {
+      MH_DisableHook(hookedFunctions[i]);
+      hookedFunctions[i] = nullptr;
+    }
+    EnterCriticalSection(&critical);
+    cbInit = nullptr;
+    cbPresent = nullptr;
+    cbDeinit = nullptr;
+    pUser = nullptr;
+    LeaveCriticalSection(&critical);
     return true;
   }
 }

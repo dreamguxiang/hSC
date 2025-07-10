@@ -78,7 +78,7 @@ typedef struct {
 i08 gui_init();
 i08 gui_deinit();
 i08 gui_waitForInit();
-i08 gui_waitForDll();
+i08 gui_waitForDll(DWORD *lastError);
 i08 gui_update();
 
 #ifdef __cplusplus
