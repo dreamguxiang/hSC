@@ -2,7 +2,7 @@
 #include "MinHook.h"
 
 #include "types.h"
-#include "gui.h"
+#include "ui/gui.h"
 #include "fpv.h"
 #include "hooked.h"
 #include "log.h"

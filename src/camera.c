@@ -3,7 +3,7 @@
 #include "mth/matrix.h"
 #include "setup.h"
 #include "fpv.h"
-#include "gui.h"
+#include "ui/gui.h"
 #include "camera.h"
 #include "aabb.h"
 
