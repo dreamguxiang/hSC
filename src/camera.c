@@ -24,15 +24,10 @@ typedef u64 (__fastcall *FnWorld_interactionTest)(
 extern SetupFunctions_t gTramp;
 // gFpv defined in fpv.c
 extern FPV_t gFpv;
-// GUI globals defined in gui.cpp
-extern GUI_t gGui;
-extern GUIState_t gState;
-extern GUIOptions_t gOptions;
 
 // Static variables and consts.
 static const v4f gravity = {-9.8f, 0.0f, 0.0f, 0.0f};
 static i08 gDoUpdate = 0;
-static v4f gMouseDelta = {0};
 
 // Globale variables.
 u64 gSavedLevelContext = 0;

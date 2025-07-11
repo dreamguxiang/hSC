@@ -2,20 +2,19 @@
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
-#include "imgui_impl_dx12.h" 
+#include "imgui_impl_dx12.h"
 #include "uglhook.h"
 
 #include "setup.h"
-#include "gui.h"
 #include "log.h"
+#include "ui/gui.h"
+#include "ui/input.h"
+#include "ui/settings.h"
+#include "ui/menu.h"
 
-#define clamp(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
 #define SBV(v, b) ((v) |= (b))
 #define CBV(v, b) ((v) &= ~(b))
 #define BTV(v, b) ((v) & (b))
-
-static const char *MODES[] = { "FirstPerson", "Front", "Placed" }
-  , *FREECAMMODES[] = { "Orientation", "Axial", "Full-direction" };
 
 static char gPrefPath[260]
   , gIniPath[260];
@@ -199,199 +198,6 @@ i08 gui_waitForInit() {
   CloseHandle(gGui.hInit);
   gGui.hInit = nullptr;
   return r;
-}
-
-static inline void gui_displayTips(i08 sameLine, const char *desc) {
-  if (sameLine)
-    ImGui::SameLine();
-  ImGui::TextDisabled("(?)");
-  if (ImGui::BeginItemTooltip()) {
-    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-    ImGui::TextUnformatted(desc);
-    ImGui::PopTextWrapPos();
-    ImGui::EndTooltip();
-  }
-}
-
-static inline void gui_subMenuSet() {
-  ImGui::SeparatorText("Set Camera Params");
-
-  // Camera position input.
-  ImGui::Checkbox("##cb1", (bool *)&gState.overridePos);
-  ImGui::SameLine();
-  ImGui::InputFloat3("Pos", (float *)&gState.pos);
-
-  // Camera rotation input.
-  ImGui::Checkbox("##cb2", (bool *)&gState.overrideDir);
-  ImGui::SameLine();
-  ImGui::InputFloat3("Rotation", (float *)&gState.rot);
-
-  // Clamp camera facing.
-  gState.rot.x = fmodf(gState.rot.x, 360.0f);
-  gState.rot.y = clamp(gState.rot.y, -89.5f, 89.5f);
-
-  // Camera scale input.
-  ImGui::Checkbox("##cb3", (bool *)&gState.overrideScale);
-  ImGui::SameLine();
-  ImGui::DragFloat("Scale", &gState.scale, .01f, 0.0f, 1.0f);
-
-  // Camera focus(blur) input.
-  ImGui::Checkbox("##cb4", (bool *)&gState.overrideFocus);
-  ImGui::SameLine();
-  ImGui::DragFloat("Focus", &gState.focus, .01f, 0.0f, 1.0f);
-
-  // Camera brightness input.
-  ImGui::Checkbox("##cb5", (bool *)&gState.overrideBrightness);
-  ImGui::SameLine();
-  ImGui::DragFloat("Brightness", &gState.brightness, .01f, 0.0f, 1.0f);
-}
-
-static inline void gui_subMenuFreecam() {
-  ImGui::SeparatorText("Free camera");
-
-  ImGui::Combo(
-    "Mode",
-    &gState.freecamMode,
-    FREECAMMODES,
-    IM_ARRAYSIZE(FREECAMMODES));
-
-  ImGui::Checkbox("Check collision", (bool *)&gState.freecamCollision);
-
-  ImGui::DragFloat("Rotate Speed", &gState.freecamRotateSpeed, .01f, 0, 10.0f);
-
-  ImGui::DragFloat("Speed", &gState.freecamSpeed, .01f, 0, 100.0f);
-  if (ImGui::Button("Reset pos"))
-    gState.resetPosFlag = 1;
-}
-
-static inline void gui_subMenuFPV() {
-  ImGui::SeparatorText("FPV");
-  if (ImGui::Button("Reset pos"))
-    gState.resetPosFlag = 1;
-}
-
-static inline void gui_navMain() {
-  if (ImGui::BeginMenuBar()) {
-    if (ImGui::BeginMenu("Edit")) {
-      ImGui::MenuItem("Preferences", nullptr, (bool *)&gGui.showSettings);
-      ImGui::EndMenu();
-    }
-    ImGui::EndMenuBar();
-  }
-}
-
-static inline void gui_windowMain() {
-  ImGuiIO &io = ImGui::GetIO();
-  (void)io;
-
-  // Title.
-  ImGui::Begin(
-    "hSC Main",
-    (bool *)&gGui.isOpen,
-    ImGuiWindowFlags_MenuBar);
-
-  gui_navMain();
-
-  // General options.
-  if (ImGui::Checkbox("Take over", (bool *)&gState.enable))
-    gState.resetPosFlag = 1;
-  ImGui::Combo("Use mode", &gState.cameraMode, MODES, IM_ARRAYSIZE(MODES));
-  ImGui::Checkbox("No UI", (bool *)&gState.noOriginalUi);
-  gui_displayTips(
-    true,
-    "Hide the original camera UI. Please adjust the parameters before select this item.");
-
-  ImGui::RadioButton("Set", &gState.overrideMode, 0);
-  ImGui::SameLine();
-  ImGui::RadioButton("Freecam", &gState.overrideMode, 1);
-  ImGui::SameLine();
-  ImGui::RadioButton("FPV", &gState.overrideMode, 2);
-
-  if (gState.overrideMode == 0)
-    gui_subMenuSet();
-  if (gState.overrideMode == 1)
-    gui_subMenuFreecam();
-  if (gState.overrideMode == 2)
-    gui_subMenuFPV();
-
-  // Overlay window FPS display.
-  ImGui::Text("Overlay %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-
-  ImGui::End();
-}
-
-static inline void gui_windowSettings() {
-  ImGuiIO &io = ImGui::GetIO();
-  (void)io;
-
-  ImGui::Begin("hSC Settings", (bool *)&gGui.showSettings);
-
-  ImGui::SeparatorText("General settings");
-
-  ImGui::Text("Mouse sensitivity");
-  ImGui::DragFloat(
-    "##settingsDrag1",
-    &gOptions.general.mouseSensitivity,
-    0.01f,
-    0.0f,
-    10.0f);
-  ImGui::Text("Vertical sensitivity scale");
-  ImGui::DragFloat(
-    "##settingsDrag2",
-    &gOptions.general.verticalSenseScale,
-    0.01f,
-    0.0f,
-    2.0f);
-
-  ImGui::SeparatorText("Freecam settings");
-
-  ImGui::Text("Swap yaw and roll");
-  ImGui::Checkbox(
-    "##settingsCheckbox3",
-    (bool *)&gOptions.freecam.swapRollYaw);
-
-  ImGui::End();
-}
-
-/**
- * Handle keyboard and mouse inputs for freecam mode.
- */
-static void gui_inputFreecam() {
-  //ImGuiIO &io = ImGui::GetIO();
-  //ImVec2 mouseDelta = io.MouseDelta;
-  v4f r = v4fnew(0.0f, 0.0f, 0.0f, 0.0f)
-    , s = v4fnew(0.0f, 0.0f, 0.0f, 0.0f);
-
-  // Movement.
-  if (ImGui::IsKeyDown(ImGuiKey_W))
-    r.z += 1.0f;
-  if (ImGui::IsKeyDown(ImGuiKey_A))
-    gState.freecamMode != FC_FULLDIR
-      ? r.x += 1.0f
-      : s.z += 1.0f;
-  if (ImGui::IsKeyDown(ImGuiKey_S))
-    r.z -= 1.0f;
-  if (ImGui::IsKeyDown(ImGuiKey_D))
-    gState.freecamMode != FC_FULLDIR
-      ? r.x -= 1.0f
-      : s.z -= 1.0f;
-
-  // Up and down.
-  if (ImGui::IsKeyDown(ImGuiKey_Space))
-    r.y += 1.0f;
-  if (ImGui::IsKeyDown(ImGuiKey_LeftShift))
-    r.y -= 1.0f;
-
-  // Mouse. Not used.
-  /*
-  s.x = mouseDelta.x / MOUSE_SENSITIVITY / 180.0f * PI_F;
-  s.y = mouseDelta.y / MOUSE_SENSITIVITY / 180.0f * PI_F;
-  */
-  s.x = gMouseDelta.x * gOptions.general.mouseSensitivity;
-  s.y = gMouseDelta.y * gOptions.general.mouseSensitivity * gOptions.general.verticalSenseScale;
-
-  gState.movementInput = r;
-  gState.facingInput = s;
 }
 
 /**

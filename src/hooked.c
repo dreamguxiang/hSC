@@ -2,14 +2,14 @@
 #include "MinHook.h"
 
 #include "types.h"
-#include "ui/gui.h"
 #include "fpv.h"
 #include "hooked.h"
 #include "log.h"
 #include "setup.h"
+#include "camera.h"
 #include "mth/vector.h"
 #include "mth/matrix.h"
-#include "camera.h"
+#include "ui/gui.h"
 
 // Defines.
 #define MH_SUCCESSED(v, s) ((v) |= (!(s)))
@@ -33,12 +33,8 @@ typedef u64 (__fastcall *FnMainCamera__getDelta)(
   u64, i08 *, u64, u64, u64, int, int);
 
 // External variables.
-// GUI globals defined in gui.cpp
-extern GUIState_t gState;
 // gSavedLevelContext defined in camera.c
 extern u64 gSavedLevelContext;
-// gMouseDelta defined in gui.cpp
-extern v4f gMouseDelta;
 
 // Static variables.
 static SetupFunctions_t gFunc;
