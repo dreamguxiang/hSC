@@ -22,12 +22,12 @@ CFLAGS += -I./src
 CFLAGS += -I./libraries/imgui-1.91.9b -I./libraries/imgui-1.91.9b/backends
 # Include MinHook.
 CFLAGS += -I./libraries/MinHook/include
-# Include kiero.
-CFLAGS += -I./libraries/kiero
 # Include UGLHook.
 CFLAGS += -I./libraries/UGLHook/src
+# Macros.
+#CFLAGS += -DNDEBUG
 
-LFLAGS = -lgdi32 -ld3d12 -ldwmapi -ld3dcompiler -lstdc++
+LFLAGS = -lgdi32 -ldwmapi -ld3dcompiler -lstdc++
 LFLAGS += -L./libraries/MinHook -lMinHook
 LFLAGS += -L./libraries/imgui-1.91.9b -limgui -limgui_impl_win32 -limgui_impl_dx12
 LFLAGS += -L./libraries/UGLHook -luglhook

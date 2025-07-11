@@ -5,6 +5,10 @@
 
 #include <windows.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef union {
   struct {
     // SkyCameraProp functions.
@@ -34,6 +38,10 @@ typedef union {
 } SetupFunctions_t;
 
 i08 setupFuncWithSig(SetupFunctions_t *functions);
-i08 setupPaths(HMODULE hModule);
+i08 setupPaths(HMODULE hModule, char *prefPath, char *guiIniPath);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

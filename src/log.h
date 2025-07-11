@@ -3,7 +3,9 @@
 
 #include <stdio.h>
 
+#ifndef NDEBUG
 #define DEBUG_CONSOLE
+#endif
 
 #ifdef DEBUG_CONSOLE
 #define LOGI(format, ...) logImp("[INFO] " format, ##__VA_ARGS__)

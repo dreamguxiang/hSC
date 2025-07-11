@@ -1,6 +1,13 @@
+#ifndef __FPV_H__
+#define __FPV_H__
+
 #include "mth/vector.h"
 #include "aliases.h"
 #include "types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef i08 (__fastcall *InteractionCheckFn)(
   v4f *, v4f *, f32, v4f *, i08 *);
@@ -31,3 +38,9 @@ FPV_t *fpv_init(
 );
 FPV_t *fpv_input();
 FPV_t *fpv_update(f32 timeElapsed);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

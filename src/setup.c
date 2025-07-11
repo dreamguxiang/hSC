@@ -39,17 +39,23 @@ i08 setupFuncWithSig(SetupFunctions_t *functions) {
   return r;
 }
 
-i08 setupPaths(HMODULE hModule) {
-  wchar_t dllPath[MAX_PATH + 11]
+i08 setupPaths(HMODULE hModule, char *prefPath, char *guiIniPath) {
+  char dllPath[MAX_PATH]
     , *p;
+  u32 len;
 
-  if (!GetModuleFileNameW(hModule, dllPath, MAX_PATH))
+  len = GetModuleFileNameA(hModule, dllPath, MAX_PATH);
+  if (!len || len >= MAX_PATH)
     return 0;
-  p = wcsrchr(dllPath, L'\\');
+  p = strrchr(dllPath, '\\');
   if (!p)
     return 0;
   *p = 0;
-  wcscat_s(dllPath, MAX_PATH, L"\\.hsc-data");
+  strcpy_s(prefPath, MAX_PATH, dllPath);
+  strcat_s(prefPath, MAX_PATH, "\\.hsc-data");
+
+  strcpy_s(guiIniPath, MAX_PATH, dllPath);
+  strcat_s(guiIniPath, MAX_PATH, "\\.hsc-gui.ini");
 
   return 1;
 }

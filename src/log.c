@@ -10,6 +10,8 @@ void recreateConsole() {
   AllocConsole();
   freopen("CONOUT$", "w+t", stdout);
   freopen("CONIN$", "r+t", stdin);
+#else
+  ;
 #endif
 }
 

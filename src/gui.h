@@ -75,7 +75,7 @@ typedef struct {
   } freecam;
 } GUIOptions_t;
 
-i08 gui_init();
+i08 gui_init(HMODULE hModule);
 i08 gui_deinit();
 i08 gui_waitForInit();
 i08 gui_waitForDll(DWORD *lastError);

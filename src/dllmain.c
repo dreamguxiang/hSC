@@ -1,8 +1,17 @@
+// ----------------------------------------------------------------------------
+// hSC (hook SkyCamera) Plugin by HTMonkeyG.
+// A camera modification plugin for Sky:CotL.
+//
+// This repository is published under MIT License.
+// <https://www.github.com/HTMonkeyG/hSC>.
+// ----------------------------------------------------------------------------
+
 #include "dllmain.h"
 
 LPVOID baseAddr;
 
 static DWORD WINAPI onAttach(LPVOID lpParam) {
+  HMODULE hModule = (HMODULE)lpParam;
   i32 s;
   DWORD le;
 
@@ -14,7 +23,7 @@ static DWORD WINAPI onAttach(LPVOID lpParam) {
   }
 
   // Initialize gui.
-  if (!gui_init()) {
+  if (!gui_init(hModule)) {
     LOGEF("Gui init failed.\n");
     return 0;
   }
@@ -56,12 +65,7 @@ BOOL APIENTRY DllMain(
     MH_Initialize();
 
     if (!CreateThread(
-      NULL,
-      0,
-      onAttach,
-      (LPVOID)hModule,
-      0,
-      &threadId
+      NULL, 0, onAttach, (LPVOID)hModule, 0, &threadId
     )) {
       LOGEF("Create subthread failed.\n");
       return TRUE;

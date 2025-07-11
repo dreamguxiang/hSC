@@ -365,19 +365,17 @@ void updatePropMain(SkyCameraProp *this) {
  * copies them into the SkyCamera struct.
  */
 void updateCameraMain(SkyCamera *this) {
-  GUIState_t *guiState = &gState;
-
   if (!gDoUpdate)
     return;
   gDoUpdate = 0;
 
-  if (guiState->useMatrix) {
-    this->super.context1.mat1 = guiState->mat[0];
-    this->super.context1.mat2 = guiState->mat[1];
-    this->super.context1.mat3 = guiState->mat[2];
+  if (gState.useMatrix) {
+    this->super.context1.mat1 = gState.mat[0];
+    this->super.context1.mat2 = gState.mat[1];
+    this->super.context1.mat3 = gState.mat[2];
   }
-  if (guiState->usePos) {
-    this->super.context1.cameraPos = guiState->mat[3];
+  if (gState.usePos) {
+    this->super.context1.cameraPos = gState.mat[3];
     this->super.context1.cameraPos.w = 1.0f;
   }
 }

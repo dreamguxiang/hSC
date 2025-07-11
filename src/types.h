@@ -6,6 +6,10 @@
 #include "aliases.h"
 #include "mth/vector.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
   FIRST = 1,
   FRONT = 2,
@@ -112,5 +116,9 @@ typedef struct {
   v4f normalize;
   i08 unk[0x40];
 } InteractionResult;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

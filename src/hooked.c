@@ -195,6 +195,16 @@ static u64 MainCamera__getDelta_Listener(
   return result;
 }
 
+/**
+ * Detour function of Input::getMouseDeltaPx().
+ * 
+ * The original function copies the mouse delta value from the global Input
+ * object to `delta`.
+ */
+static u64 Input_getMouseDeltaPx_Listener(u64 *a1, v4f *delta) {
+  return 0;
+}
+
 // ----------------------------------------------------------------------------
 // [SECTION] Initializations.
 // ----------------------------------------------------------------------------

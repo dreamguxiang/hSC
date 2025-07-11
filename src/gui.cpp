@@ -4,6 +4,8 @@
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h" 
 #include "uglhook.h"
+
+#include "setup.h"
 #include "gui.h"
 #include "log.h"
 
@@ -12,11 +14,11 @@
 #define CBV(v, b) ((v) &= ~(b))
 #define BTV(v, b) ((v) & (b))
 
-// Pixel per degree.
-#define MOUSE_SENSITIVITY 1.0f
-
 static const char *MODES[] = { "FirstPerson", "Front", "Placed" }
   , *FREECAMMODES[] = { "Orientation", "Axial", "Full-direction" };
+
+static char gPrefPath[260]
+  , gIniPath[260];
 
 GUI_t gGui = {0};
 GUIState_t gState = {0};
@@ -99,13 +101,35 @@ i08 gui_waitForDll(DWORD *lastError) {
 }
 
 /**
+ * Load saved preference data.
+ */
+i08 gui_loadPreferences(HMODULE hModule) {
+  setupPaths(hModule, gPrefPath, gIniPath);
+  return 0;
+}
+
+/**
+ * Save preference data to disk.
+ */
+i08 gui_savePreferences(HMODULE hModule) {
+  //setupPaths(hModule, );
+  return 0;
+}
+
+/**
  * Initialize the gui.
  */
-i08 gui_init() {
+i08 gui_init(HMODULE hModule) {
   // We assume that the gGui is safely deinitialized.
   memset(&gGui, 0, sizeof(GUI_t));
+  memset(&gState, 0, sizeof(GUIState_t));
   QueryPerformanceFrequency((LARGE_INTEGER *)&gGui.performFreq);
-  gGui.hInit = CreateEventW(NULL, 0, 0, NULL);
+  gGui.hInit = CreateEventW(nullptr, 0, 0, nullptr);
+  gGui.isOpen = 1;
+
+  // Preload saved preference data to memory.
+  gui_loadPreferences(hModule);
+
   return D3D12Hooks::init(
     [](const DXGI_SWAP_CHAIN_DESC *sDesc, void *lpUser) -> void {
       SetEvent(gGui.hInit);
@@ -116,7 +140,7 @@ i08 gui_init() {
 
       ImGuiIO &io = ImGui::GetIO(); (void)io;
       io.Fonts->AddFontDefault();
-      io.IniFilename = NULL;
+      io.IniFilename = gIniPath;
 
       ImGuiStyle &style = ImGui::GetStyle();
       dpiScale = ImGui_ImplWin32_GetDpiScaleForHwnd(sDesc->OutputWindow);
@@ -173,7 +197,7 @@ i08 gui_waitForInit() {
   if (WaitForSingleObject(gGui.hInit, 30000) != WAIT_OBJECT_0)
     r = 0;
   CloseHandle(gGui.hInit);
-  gGui.hInit = NULL;
+  gGui.hInit = nullptr;
   return r;
 }
 
@@ -233,7 +257,7 @@ static inline void gui_subMenuFreecam() {
 
   ImGui::Checkbox("Check collision", (bool *)&gState.freecamCollision);
 
-  ImGui::DragFloat("Roll Speed", &gState.freecamRotateSpeed, .01f, 0, 10.0f);
+  ImGui::DragFloat("Rotate Speed", &gState.freecamRotateSpeed, .01f, 0, 10.0f);
 
   ImGui::DragFloat("Speed", &gState.freecamSpeed, .01f, 0, 100.0f);
   if (ImGui::Button("Reset pos"))
@@ -249,7 +273,7 @@ static inline void gui_subMenuFPV() {
 static inline void gui_navMain() {
   if (ImGui::BeginMenuBar()) {
     if (ImGui::BeginMenu("Edit")) {
-      ImGui::MenuItem("Preferences", NULL, (bool *)&gGui.showSettings);
+      ImGui::MenuItem("Preferences", nullptr, (bool *)&gGui.showSettings);
       ImGui::EndMenu();
     }
     ImGui::EndMenuBar();

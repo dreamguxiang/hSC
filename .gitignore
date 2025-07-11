@@ -6,10 +6,11 @@
 *.dll
 *.exe
 *.bak
+*.ini
 test*
 
 # Folders
 .vscode/
 dist/
 pack/
-.VSCodeCounter
+.VSCodeCounter/

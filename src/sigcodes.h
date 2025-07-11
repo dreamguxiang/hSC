@@ -4,7 +4,25 @@
 #include <windows.h>
 #include "aliases.h"
 
+// ----------------------------------------------------------------------------
+// This file contains all signature codes of the in-game functions hooked or
+// called in the plugin.
+//
+// `indirect` indicates the function is found through a single E8 or E9 jump
+// instruction, and the `offset` param is the offset of the used E8 or E9 byte.
+// The sigScanE8() function will automatically calculate the absolute offset.
+//
+// If `indirect` is 0, then the `offset` specifies the offset from the first
+// byte of the signature pattern to the first instruction of the function
+// (`push rbp` in most cases).
+// ----------------------------------------------------------------------------
+
+// NOT USED. The version of the game.
 #define VERSION_SKY 1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
   const char *sig;
@@ -91,5 +109,9 @@ static const Signature_t *funcSig[9] = {
   &sig_SkyCamera_update,
   &sigE8_MainCamera__getDelta
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
