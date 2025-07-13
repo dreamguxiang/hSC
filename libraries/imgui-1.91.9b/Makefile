@@ -5,7 +5,7 @@ AR = ar
 
 CFLAGS = -std=c++11 -g -Wall -Wformat -I. -I./backends -DNDEBUG
 
-all: libimgui.a libimgui_impl_win32.a libimgui_impl_dx11.a libimgui_impl_opengl3.a libimgui_impl_dx9.a libimgui_impl_dx12.a libimgui_demo.a
+all: libimgui.a libimgui_impl_win32.a libimgui_impl_dx11.a libimgui_impl_dx9.a libimgui_impl_dx12.a libimgui_demo.a
 
 libimgui.a: ./imgui_draw.o ./imgui_tables.o ./imgui_widgets.o ./imgui.o
 	$(AR) rcs $@ $^
@@ -23,9 +23,6 @@ libimgui_impl_dx11.a: ./imgui_impl_dx11.o
 	$(AR) rcs $@ $<
 
 libimgui_impl_dx9.a: ./imgui_impl_dx9.o
-	$(AR) rcs $@ $<
-
-libimgui_impl_opengl3.a: ./imgui_impl_opengl3.o
 	$(AR) rcs $@ $<
 
 ./imgui_draw.o: ./imgui_draw.cpp
