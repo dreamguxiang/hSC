@@ -8,9 +8,19 @@
 
 #define WM_USER_EXIT (0x8000 + 1)
 
+#define OM_SET (0x00)
+#define OM_FREE (0x01)
+#define OM_FPV (0x02)
+#define OM_WHISKER (0x03)
+
 #define FC_ORIENT (0x00)
 #define FC_AXIAL (0x01)
 #define FC_FULLDIR (0x02)
+
+#define CM_FIRST (0x00)
+#define CM_FRONT (0x01)
+#define CM_PLACE (0x02)
+#define CM_WHISKER (0x03)
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,8 +30,8 @@ typedef struct {
   // General controller.
   i08 enable;
   i08 noOriginalUi;
-  i32 cameraMode;
   i32 overrideMode;
+  i32 cameraMode;
   i08 resetPosFlag;
 
   // Inputs.
@@ -72,6 +82,7 @@ typedef struct {
   } general;
   struct {
     i08 swapRollYaw;
+    i08 fullTakeover;
   } freecam;
 } GUIOptions_t;
 

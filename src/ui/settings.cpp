@@ -1,13 +1,20 @@
 #include "imgui.h"
 
 #include "ui/gui.h"
+#include "ui/menu.h"
 #include "ui/settings.h"
 
 void gui_windowSettings() {
   ImGuiIO &io = ImGui::GetIO();
   (void)io;
 
-  ImGui::Begin("hSC Settings", (bool *)&gGui.showSettings);
+  if (!ImGui::Begin(
+    "hSC Settings",
+    (bool *)&gGui.showSettings
+  )) {
+    ImGui::End();
+    return;
+  }
 
   ImGui::SeparatorText("General settings");
 
@@ -27,10 +34,18 @@ void gui_windowSettings() {
     2.0f);
 
   ImGui::SeparatorText("Freecam settings");
+  
+  ImGui::Text("Full-takeover by default");
+  gui_displayTips(
+    "The plugin will automatically obtain mouse increments and calculate"
+    "rotations, instead of using the game's original calculations.");
+  ImGui::Checkbox(
+    "##settingsCheckbox3",
+    (bool *)&gOptions.freecam.fullTakeover);
 
   ImGui::Text("Swap yaw and roll");
   ImGui::Checkbox(
-    "##settingsCheckbox3",
+    "##settingsCheckbox4",
     (bool *)&gOptions.freecam.swapRollYaw);
 
   ImGui::End();

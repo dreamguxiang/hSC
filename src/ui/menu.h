@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+void gui_displayTips(const char *desc, i08 sameLine = 1);
 void gui_windowMain();
 
 #ifdef __cplusplus

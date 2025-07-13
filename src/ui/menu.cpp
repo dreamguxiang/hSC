@@ -6,11 +6,10 @@
 
 #define clamp(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
 
-static const char *MODES[] = { "FirstPerson", "Front", "Placed" }
+static const char *MODES[] = { "FirstPerson", "Front", "Placed", "WhiskerCamera" }
   , *FREECAMMODES[] = { "Orientation", "Axial", "Full-direction" };
 
-
-static inline void gui_displayTips(i08 sameLine, const char *desc) {
+void gui_displayTips(const char *desc, i08 sameLine) {
   if (sameLine)
     ImGui::SameLine();
   ImGui::TextDisabled("(?)");
@@ -37,7 +36,10 @@ static void gui_subMenuSet() {
 
   // Clamp camera facing.
   gState.rot.x = fmodf(gState.rot.x, 360.0f);
-  gState.rot.y = clamp(gState.rot.y, -89.5f, 89.5f);
+  gState.rot.z = fmodf(gState.rot.z, 360.0f);
+  gState.rot.y = clamp(gState.rot.y, -89.75f, 89.75f);
+
+  ImGui::BeginDisabled(gState.cameraMode == 3);
 
   // Camera scale input.
   ImGui::Checkbox("##cb3", (bool *)&gState.overrideScale);
@@ -53,6 +55,8 @@ static void gui_subMenuSet() {
   ImGui::Checkbox("##cb5", (bool *)&gState.overrideBrightness);
   ImGui::SameLine();
   ImGui::DragFloat("Brightness", &gState.brightness, .01f, 0.0f, 1.0f);
+
+  ImGui::EndDisabled();
 }
 
 static void gui_subMenuFreecam() {
@@ -94,10 +98,14 @@ void gui_windowMain() {
   (void)io;
 
   // Title.
-  ImGui::Begin(
+  if (!ImGui::Begin(
     "hSC Main",
     (bool *)&gGui.isOpen,
-    ImGuiWindowFlags_MenuBar);
+    ImGuiWindowFlags_MenuBar
+  )) {
+    ImGui::End();
+    return;
+  }
 
   gui_navMain();
 
@@ -107,8 +115,8 @@ void gui_windowMain() {
   ImGui::Combo("Use mode", &gState.cameraMode, MODES, IM_ARRAYSIZE(MODES));
   ImGui::Checkbox("No UI", (bool *)&gState.noOriginalUi);
   gui_displayTips(
-    true,
-    "Hide the original camera UI. Please adjust the parameters before select this item.");
+    "Hide the original camera UI. Please adjust the parameters before select"
+    "this item.");
 
   ImGui::RadioButton("Set", &gState.overrideMode, 0);
   ImGui::SameLine();

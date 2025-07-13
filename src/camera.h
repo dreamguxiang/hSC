@@ -10,7 +10,8 @@ extern "C" {
 #endif
 
 void updatePropMain(SkyCameraProp *);
-void updateCameraMain(SkyCamera *);
+void preupdateCameraMain(MainCamera *this);
+void updateCameraMain(MainCamera *);
 
 void updateMouseDelta(v4f);
 

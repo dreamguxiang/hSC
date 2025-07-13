@@ -72,11 +72,9 @@ static u64 SkyCameraProp__updateParams_Listener(SkyCameraProp *this, u64 context
 
   result = ((FnSkyCameraProp__updateParams)gTramp.fn_SkyCameraProp__updateParams)(
     this, context);
-  // All the updates is directly set to the SkyCamera struct through a pointer
-  // to it. There isn't a valid pointer to the SkyCameraProp struct in the
-  // SkyCamera, so we put the updates that depend on the SkyCameraProp struct
-  // here.
-  updatePropMain(this);
+  
+  if (this->cameraType == gState.cameraMode + 1)
+    updatePropMain(this);
 
   return result;
 }
@@ -147,6 +145,10 @@ static u64 WhiskerCamera_update_Listener(
   u64 result;
   result = ((FnWhiskerCamera_update)gTramp.fn_WhiskerCamera_update)(
     this, context);
+  if (gState.cameraMode == CM_WHISKER) {
+    preupdateCameraMain(&this->super);
+    updateCameraMain(&this->super);
+  }
   return result;
 }
 
@@ -163,7 +165,13 @@ static u64 SkyCamera_update_Listener(
   u64 result;
   result = ((FnSkyCamera_update)gTramp.fn_SkyCamera_update)(
     this, context);
-  updateCameraMain(this);
+  if (
+    gState.cameraMode < CM_WHISKER
+    && SkyCamera_getPropPtr(this)->cameraType == gState.cameraMode + 1
+  ) {
+    preupdateCameraMain(&this->super);
+    updateCameraMain(&this->super);
+  }
   return result;
 }
 

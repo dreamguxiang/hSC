@@ -25,10 +25,6 @@ extern SetupFunctions_t gTramp;
 // gFpv defined in fpv.c
 extern FPV_t gFpv;
 
-// Static variables and consts.
-static const v4f gravity = {-9.8f, 0.0f, 0.0f, 0.0f};
-static i08 gDoUpdate = 0;
-
 // Globale variables.
 u64 gSavedLevelContext = 0;
 
@@ -74,6 +70,10 @@ static inline void eulerToRotationXYZ(v4f euler, v4f *matrix) {
   matrix[2].z = cp * cy;
 }
 
+static inline void rotationToEulerXYZ(v4f *matrix, v4f euler) {
+
+}
+
 /**
  * Encapsulation for invocations of World::interactionCheck().
  * 
@@ -102,6 +102,7 @@ static inline void eulerToRotationXYZ(v4f euler, v4f *matrix) {
   len = v4flen(vec);
 
   for (i32 i = 0; i < 8; i++) {
+    // Iterate 8 vertices of the AABB.
     iter = 0;
     origin = vertices[i];
 
@@ -109,12 +110,17 @@ static inline void eulerToRotationXYZ(v4f euler, v4f *matrix) {
       ((FnWorld_interactionTest)gTramp.fn_Level_interactionTest)(
         gSavedLevelContext, &origin, &dir, len, NULL, (i08 *)&ir)
     ) {
+      // Subtract the projection of the displacement vector onto the normal
+      // vector to obtain the tangential component of the displacement vector.
       vec = v4fsub(vec, v4fprojection(vec, ir.normalize));
+      // Use the tangential vector to iterate the calculation 3 times, to avoid
+      // corruptions at the intersection of two faces.
       dir = v4fnormalize(vec);
       len = v4flen(vec);
 
       result = 1;
       if (len < 0.0001) {
+        // Directly break the loop if the displacement is small enough.
         done = 1;
         break;
       }
@@ -137,47 +143,12 @@ static inline void eulerToRotationXYZ(v4f euler, v4f *matrix) {
 // [SECTION] Camera update functions.
 // ----------------------------------------------------------------------------
 
-i08 updatePropSet(SkyCameraProp *this) {
-  v4f *pos, *dir, *gsRot
-    , rot;
-
-  if (this->cameraType != gState.cameraMode + 1)
-    return 0;
-
-  dir = &((SkyCamera *)this->unk_2_3[2])->dir;
-  pos = &((SkyCamera *)this->unk_2_3[2])->pos;
-  gsRot = &gState.rot;
-
-  // Override coodinates or sync original camera pos to overlay.
-  OVERRIDE_2(gState.overridePos, *pos, gState.pos);
-  gState.mat[3] = *pos;
-
-  if (gState.overrideDir) {
-    // Override facing directions.
-    rot = v4fscale(gState.rot, PI_F / 180.0f);
-
-    // Forcely reset the rotate status.
+static void updatePropSet(SkyCameraProp *this) {
+  if (gState.overrideDir && gState.cameraMode != CM_PLACE) {
+    this->rotateXAnim = this->rotateX = (gState.rot.x - 180.0f) / 180.0f * PI_F;
+    this->rotateYAnim = this->rotateY = -gState.rot.y / 180.0f * PI_F;
     this->rotateSpeedX = this->rotateSpeedY = 0;
-    this->rotateXAnim = this->rotateX = rot.x;
-    this->rotateYAnim = this->rotateY = rot.y;
-
-    eulerToRotationXYZ(rot, gState.mat);
-  } else {
-    // Sync original facing directions to overlay.
-    gsRot->y = -asinf(dir->y) / PI_F * 180.0f;
-    gsRot->z = 0;
-
-    if (dir->x == 0 && dir->z == 0)
-      gsRot->x = 0;
-    else {
-      // There will be some floating point errors here, but it's fine.
-      gsRot->x = atan2f(dir->x, dir->z) / PI_F * 180.0f;
-      gsRot->x += gsRot->x < 0 ? 360.0f : 0;
-    }
   }
-
-  gState.usePos = gState.overridePos;
-  gState.useMatrix = gState.overrideDir;
 
   // Override or sync camera params.
   OVERRIDE_3(
@@ -195,62 +166,134 @@ i08 updatePropSet(SkyCameraProp *this) {
     this->brightnessAnim,
     this->brightness,
     gState.brightness);
-  
-  return 1;
 }
 
-i08 updatePropFreecam(SkyCameraProp *this) {
+static void updatePropFreecam(SkyCameraProp *this) {
+  ;
+}
+
+static void updatePropFPV(SkyCameraProp *this) {
+  ;
+}
+
+/**
+ * Calculate the rotation matrix and camera pos with gui data, and save
+ * caculated data to gState.
+ */
+void updatePropMain(SkyCameraProp *this) {
+  if (!gState.enable)
+    return;
+
+  if (gState.overrideMode == OM_SET)
+    updatePropSet(this);
+  else if (gState.overrideMode == OM_FREE)
+    updatePropFreecam(this);
+  else if (gState.overrideMode == OM_FPV)
+    updatePropFPV(this);
+}
+
+void preupdateSet(MainCamera *this) {
+  v4f *pos, *dir, *gsRot
+    , rot;
+
+  dir = &this->context1.mat3;
+  pos = &this->context1.cameraPos;
+  gsRot = &gState.rot;
+
+  // Override coodinates or sync original camera pos to overlay.
+  OVERRIDE_2(gState.overridePos, *pos, gState.pos);
+  gState.mat[3] = *pos;
+
+  if (gState.overrideDir) {
+    // Override facing directions.
+    rot = v4fscale(gState.rot, PI_F / 180.0f);
+    // Copy the rotation matrix to gState. We must provide the matrix to the
+    // gui.
+    eulerToRotationXYZ(rot, gState.mat);
+  } else {
+    // Sync original facing directions to overlay. We assume that the rotation
+    // matrix is in the order of yaw-pitch-roll, so we can apply the following
+    // codes.
+
+    // Get the pitch angle. When the camera looks "up", or, the foward vector
+    // "raises", the pitch angle actually decreases, so there's a negative sign
+    // here.
+    gsRot->y = -asinf(dir->y) / PI_F * 180.0f;
+
+    // Get the yaw angle.
+    if (dir->x == 0 && dir->z == 0)
+      // Avoid dividing by 0, although this case won't happen in normal games.
+      gsRot->x = 0;
+    else {
+      // There will be some floating point errors here, but it's fine.
+      gsRot->x = atan2f(dir->x, dir->z) / PI_F * 180.0f;
+      gsRot->x += gsRot->x < 0 ? 360.0f : 0;
+    }
+
+    // Get the roll angle. This value is always 0 in SkyCamera calls.
+    if (this->context1.mat1.y == 0 && this->context1.mat2.y == 0)
+      gsRot->z = 0;
+    else {
+      gsRot->z = atan2f(this->context1.mat1.y, this->context1.mat2.y) / PI_F * 180.0f;
+      gsRot->z += gsRot->z < 0 ? 360.0f : 0;
+    }
+  }
+
+  gState.usePos = gState.overridePos;
+  gState.useMatrix = gState.overrideDir;
+}
+
+void preupdateFreecam(MainCamera *this) {
   v4f deltaRot = {0}
     , size = {0.1f, 0.1f, 0.1f, 0.1f}
-    , *pos, *dir
+    // Original direction vector (foward vector).
+    , oDir = {0}
+    , *dir
     , lastPos, delta;
-  v2f tmp;
   f32 t;
   m44 mat = {0};
   AABB_t aabb;
 
-  if (this->cameraType != gState.cameraMode + 1)
-    return 0;
-
-  pos = &((SkyCamera *)this->unk_2_3[2])->pos;
-  dir = &((SkyCamera *)this->unk_2_3[2])->dir;
-
-  gState.usePos = 0;
+  dir = &this->context1.mat3;
 
   if (gState.resetPosFlag) {
-    gState.pos = *pos;
-    gState.rot = v4fnew(
+    gState.pos = gState.mat[3] = this->context1.cameraPos;
+    /*gState.rot = v4fnew(
       this->rotateXAnim,
       this->rotateYAnim,
       0,
-      0);
+      0);*/
     gState.resetPosFlag = 0;
     eulerToRotationXYZ(gState.rot, gState.mat);
-    return 0;
+    return;
   }
 
   // Calculte the direction vector parallel to xOz plane.
   lastPos = gState.pos;
-  tmp.x = sinf(this->rotateXAnim);
-  tmp.y = cosf(this->rotateXAnim);
+
+  // FIXME: When look direct up, the horizontal direction vector will be a zero
+  // vector, so the camera won't move.
+  oDir.x = dir->x;
+  oDir.y = dir->z;
+  oDir = v4fnormalize(oDir);
 
   if (gState.freecamMode == FC_ORIENT) {
     // Combine forward vector and left vector.
     delta = v4fnew(
-      gState.movementInput.x * +tmp.y,
+      -gState.movementInput.x * +oDir.y,
       gState.movementInput.y,
-      gState.movementInput.x * -tmp.x,
+      -gState.movementInput.x * -oDir.x,
       0.0f);
-    delta = v4fadd(delta, v4fscale(*dir, gState.movementInput.z));
+    delta = v4fadd(delta, v4fscale(*dir, -gState.movementInput.z));
 
     // Do not override the rotation matrix.
     gState.useMatrix = 0;
     gState.rot.z = 0;
   } else if (gState.freecamMode == FC_AXIAL) {
     // Rotate it by the movement input. Axial mode will ignore the roll angle.
-    delta.x = tmp.x * gState.movementInput.z + tmp.y * gState.movementInput.x;
+    delta.x = oDir.x * -gState.movementInput.z + oDir.y * -gState.movementInput.x;
     delta.y = gState.movementInput.y;
-    delta.z = tmp.y * gState.movementInput.z - tmp.x * gState.movementInput.x;
+    delta.z = oDir.y * -gState.movementInput.z - oDir.x * -gState.movementInput.x;
 
     // Do not override the rotation matrix.
     gState.useMatrix = 0;
@@ -286,6 +329,7 @@ i08 updatePropFreecam(SkyCameraProp *this) {
   delta = v4fscale(delta, gState.freecamSpeed * gGui.timeElapsedSecond);
 
   if (gState.freecamCollision) {
+    // Build AABB and check collision.
     aabb.lower = v4fsub(gState.pos, size);
     aabb.upper = v4fadd(gState.pos, size);
     fpvCheckCollision(&aabb, &delta);
@@ -295,46 +339,21 @@ i08 updatePropFreecam(SkyCameraProp *this) {
   gState.pos = v4fadd(
     lastPos,
     delta);
-  *pos = gState.pos;
+  gState.mat[3] = gState.pos;
 
-  return 1;
-}
-
-i08 updatePropFPV(SkyCameraProp *this) {
-  v4f *pos;//, *dir;
-
-  if (this->cameraType != gState.cameraMode + 1)
-    return 0;
-
-  pos = &((SkyCamera *)this->unk_2_3[2])->pos;
-  //dir = (v4f *)((i08 *)this->unk_2_3[2] + 0x140);
-
-  if (gState.resetPosFlag) {
-    //fpv_init(fpvCheckCollision, *pos, gravity);
-    gState.resetPosFlag = 0;
-  }
-
-  fpv_update(gGui.timeElapsedSecond);
-
-  *pos = gFpv.pos;
-
-  return 1;
+  // Always override the position.
+  gState.usePos = 1;
 }
 
 /**
- * Calculate the rotation matrix and camera pos with gui data, and save
- * caculated data to gState.
+ * Get the time elapsed since last frame, and calculate rotation matrix and
+ * posision vector.
+ * 
+ * NOTE: This function must ONLY execute ONCE in every frame.
  */
-void updatePropMain(SkyCameraProp *this) {
+void preupdateCameraMain(MainCamera *this) {
   i64 qpc, inteval;
-  GUIState_t *guiState = &gState;
-  i08 doUpdate;
 
-  if (!guiState->enable) {
-    gDoUpdate = 0;
-    return;
-  }
-  
   // Calculate time elapsed since last frame.
   if (!gGui.lastFrameCounter)
     QueryPerformanceCounter((LARGE_INTEGER *)&gGui.lastFrameCounter);
@@ -345,33 +364,34 @@ void updatePropMain(SkyCameraProp *this) {
     gGui.timeElapsedSecond = (f32)inteval / (f32)gGui.performFreq;
   }
 
-  if (guiState->overrideMode == 0)
-    doUpdate = updatePropSet(this);
-  else if (guiState->overrideMode == 1)
-    doUpdate = updatePropFreecam(this);
-  else if (guiState->overrideMode == 2)
-    doUpdate = updatePropFPV(this);
+  if (!gState.enable)
+    return;
 
-  gDoUpdate = doUpdate;
+  gState.useMatrix = gState.usePos = 0;
+
+  if (gState.overrideMode == OM_SET)
+    preupdateSet(this);
+  else if (gState.overrideMode == OM_FREE)
+    preupdateFreecam(this);
+  else if (gState.overrideMode == OM_FPV)
+    ;//updatePropFPV(this);
 }
 
 /**
- * All the data is calculated in updateProp functions, this function only
- * copies them into the SkyCamera struct.
+ * Copy calculated rotation matrix and position vector.
  */
-void updateCameraMain(SkyCamera *this) {
-  if (!gDoUpdate)
+void updateCameraMain(MainCamera *this) {
+  if (!gState.enable)
     return;
-  gDoUpdate = 0;
 
   if (gState.useMatrix) {
-    this->super.context1.mat1 = gState.mat[0];
-    this->super.context1.mat2 = gState.mat[1];
-    this->super.context1.mat3 = gState.mat[2];
+    this->context1.mat1 = gState.mat[0];
+    this->context1.mat2 = gState.mat[1];
+    this->context1.mat3 = gState.mat[2];
   }
   if (gState.usePos) {
-    this->super.context1.cameraPos = gState.mat[3];
-    this->super.context1.cameraPos.w = 1.0f;
+    this->context1.cameraPos = gState.mat[3];
+    this->context1.cameraPos.w = 1.0f;
   }
 }
 
