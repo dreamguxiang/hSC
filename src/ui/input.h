@@ -7,13 +7,15 @@
 extern "C" {
 #endif
 
-extern v4f gMouseDelta;
+extern v4f gMouseDeltaPx;
 
 /**
  * Handle keyboard and mouse inputs for freecam mode.
  */
 void gui_inputFreecam();
 void gui_inputFPV();
+
+v4f gui_getFacingDeltaRad();
 
 #ifdef __cplusplus
 }

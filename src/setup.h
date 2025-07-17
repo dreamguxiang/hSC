@@ -29,8 +29,8 @@ typedef union {
     // SkyCamera functions.
     void *fn_SkyCamera_update;
 
-    // MainCamera functions.
-    void *fn_MainCamera__getDelta;
+    // Input functions.
+    void *fn_Input_getMouseDeltaPx;
   };
 
   // Array of functions.

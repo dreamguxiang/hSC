@@ -3,7 +3,7 @@
 #include "ui/gui.h"
 #include "ui/input.h"
 
-v4f gMouseDelta;
+v4f gMouseDeltaPx = {0};
 
 void gui_inputFreecam() {
   v4f r = v4fnew(0.0f, 0.0f, 0.0f, 0.0f)
@@ -28,14 +28,6 @@ void gui_inputFreecam() {
     r.y += 1.0f;
   if (ImGui::IsKeyDown(ImGuiKey_LeftShift))
     r.y -= 1.0f;
-
-  // Mouse. Not used.
-  /*
-  s.x = mouseDelta.x / MOUSE_SENSITIVITY / 180.0f * PI_F;
-  s.y = mouseDelta.y / MOUSE_SENSITIVITY / 180.0f * PI_F;
-  */
-  s.x = gMouseDelta.x * gOptions.general.mouseSensitivity;
-  s.y = gMouseDelta.y * gOptions.general.mouseSensitivity * gOptions.general.verticalSenseScale;
 
   gState.movementInput = r;
   gState.facingInput = s;
@@ -65,14 +57,18 @@ void gui_inputFPV() {
   if (ImGui::IsKeyDown(ImGuiKey_LeftShift))
     r.y -= 1.0f;
 
-  // Mouse. Not used.
-  /*
-  s.x = mouseDelta.x / MOUSE_SENSITIVITY / 180.0f * PI_F;
-  s.y = mouseDelta.y / MOUSE_SENSITIVITY / 180.0f * PI_F;
-  */
-  s.x = gMouseDelta.x * gOptions.general.mouseSensitivity;
-  s.y = gMouseDelta.y * gOptions.general.mouseSensitivity * gOptions.general.verticalSenseScale;
-
   gState.movementInput = r;
   gState.facingInput = s;
+}
+
+v4f gui_getFacingDeltaRad() {
+  v4f result = gMouseDeltaPx;
+
+  // About 16000px per 360 degree when the sensitivity is 1.
+  result = v4fscale(
+    result,
+    2.0f * PI_F / 16384.0f / 4.0f * gOptions.general.mouseSensitivity);
+  result.y *= gOptions.general.verticalSenseScale;
+
+  return result;
 }

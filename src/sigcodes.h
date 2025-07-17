@@ -97,8 +97,17 @@ static const Signature_t sigE8_MainCamera__getDelta = {
   .indirect = 1,
   .offset = 0x14
 };
+static const Signature_t sigE8_Input_getMouseDeltaPx = {
+  .sig =
+    "41 80 7D ?  ?  0F 84 ?  ?  ?  ?  48 8B 8E ?  ?  "
+    "?  ?  48 8D 94 24 ?  ?  ?  ?  E8 ?  ?  ?  ?  C4 "
+    "E2 79 18 05",
+  .name = "Input::getMouseDeltaPx()",
+  .indirect = 1,
+  .offset = 0x1A
+};
 
-static const Signature_t *funcSig[9] = {
+static const Signature_t *funcSig[10] = {
   &sigE8_SkyCameraProp__updateParams,
   &sigE8_SkyCameraProp_updateUI,
   NULL,
@@ -107,7 +116,7 @@ static const Signature_t *funcSig[9] = {
   &sigE8_World_interactionTest,
   &sig_WhiskerCamera_update,
   &sig_SkyCamera_update,
-  &sigE8_MainCamera__getDelta
+  &sigE8_Input_getMouseDeltaPx
 };
 
 #ifdef __cplusplus

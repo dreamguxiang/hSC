@@ -9,11 +9,11 @@
 extern "C" {
 #endif
 
+extern u64 gSavedLevelContext;
+
 void updatePropMain(SkyCameraProp *);
 void preupdateCameraMain(MainCamera *this);
 void updateCameraMain(MainCamera *);
-
-void updateMouseDelta(v4f);
 
 #ifdef __cplusplus
 }

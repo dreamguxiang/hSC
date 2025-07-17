@@ -9,6 +9,7 @@
 #include "mth/vector.h"
 #include "mth/matrix.h"
 #include "ui/gui.h"
+#include "ui/input.h"
 
 // Defines.
 #define MH_SUCCESSED(v, s) ((v) |= (!(s)))
@@ -30,10 +31,8 @@ typedef u64 (__fastcall *FnSkyCamera_update)(
   SkyCamera *, u64 *);
 typedef u64 (__fastcall *FnMainCamera__getDelta)(
   u64, i08 *, u64, u64, u64, int, int);
-
-// External variables.
-// gSavedLevelContext defined in camera.c
-extern u64 gSavedLevelContext;
+typedef u64 (__fastcall *FnInput_getMouseDeltaPx)(
+  u64, v4f *);
 
 // Static variables.
 static SetupFunctions_t gFunc;
@@ -175,37 +174,17 @@ static u64 SkyCamera_update_Listener(
 }
 
 /**
- * Detour function for MainCamera::_getdelta().
- * 
- * The original function calculates the mouse delta on last frame.
- */
-static u64 MainCamera__getDelta_Listener(
-  u64 a1,
-  i08 *a2,
-  u64 a3,
-  u64 a4,
-  u64 a5,
-  int a6,
-  int a7
-) {
-  u64 result;
-  result = ((FnMainCamera__getDelta)gTramp.fn_MainCamera__getDelta)(
-    a1, a2, a3, a4, a5, a6, a7);
-  if (a2[1])
-    updateMouseDelta(*(v4f *)(a2 + 0x10));
-  else
-    updateMouseDelta(v4fnew(0, 0, 0, 0));;
-  return result;
-}
-
-/**
  * Detour function of Input::getMouseDeltaPx().
  * 
  * The original function copies the mouse delta value from the global Input
  * object to `delta`.
  */
-static u64 Input_getMouseDeltaPx_Listener(u64 *a1, v4f *delta) {
-  return 0;
+static u64 Input_getMouseDeltaPx_Listener(u64 a1, v4f *delta) {
+  u64 result;
+  result = ((FnInput_getMouseDeltaPx)gTramp.fn_Input_getMouseDeltaPx)(
+    a1, delta);
+  gMouseDeltaPx = *delta;
+  return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -221,7 +200,7 @@ static const void *detourFunc[9] = {
   World_interactionTest_Listener,
   WhiskerCamera_update_Listener,
   SkyCamera_update_Listener,
-  MainCamera__getDelta_Listener
+  Input_getMouseDeltaPx_Listener
 };
 
 /**

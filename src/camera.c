@@ -266,7 +266,7 @@ void preupdateFreecam(MainCamera *this) {
     // Original direction vector (foward vector).
     , oDir = {0}
     , *dir
-    , lastPos, delta;
+    , lastPos, delta, mouseDelta;
   f32 t;
   m44 mat = {0};
   AABB_t aabb;
@@ -284,6 +284,8 @@ void preupdateFreecam(MainCamera *this) {
     eulerToRotationXYZ(gState.rot, gState.mat);
     return;
   }
+
+  mouseDelta = gui_getFacingDeltaRad();
 
   // Calculte the direction vector parallel to xOz plane.
   lastPos = gState.pos;
@@ -317,18 +319,15 @@ void preupdateFreecam(MainCamera *this) {
     gState.rot.z = 0;
   } else if (gState.freecamMode == FC_FULLDIR) {
     // Calculate rotation delta from hooked data.
-    deltaRot.z = gState.facingInput.z * gState.freecamRotateSpeed;
-    deltaRot.x = -gMouseDelta.x * gOptions.general.mouseSensitivity;
-    deltaRot.y = gMouseDelta.y * gOptions.general.mouseSensitivity * gOptions.general.verticalSenseScale;
+    deltaRot.z = gState.facingInput.z * gState.freecamRotateSpeed * gGui.timeElapsedSecond;
+    deltaRot.x = -mouseDelta.x;
+    deltaRot.y = mouseDelta.y;
 
     if (gOptions.freecam.swapRollYaw) {
       t = deltaRot.z;
       deltaRot.z = deltaRot.x;
       deltaRot.x = t;
     }
-
-    deltaRot = v4fscale(deltaRot,
-      gGui.timeElapsedSecond);
 
     // Calculate rotation matrix based on last frame.
     eulerToRotationXYZ(deltaRot, (v4f *)&mat);
@@ -362,18 +361,18 @@ void preupdateFreecam(MainCamera *this) {
 }
 
 void preupdateFPV(MainCamera *this) {
-  v4f deltaRot = {0};
+  v4f deltaRot = {0}
+    , mouseDelta;
 
   if (gState.resetPosFlag) {
     gState.resetPosFlag = 0;
     (void)fpvElytra_init(this->context1.cameraPos, V4FZERO, FPVRST_POS);
     return;
   }
-  
-  deltaRot.x = -gMouseDelta.x * gOptions.general.mouseSensitivity;
-  deltaRot.y = gMouseDelta.y * gOptions.general.mouseSensitivity * gOptions.general.verticalSenseScale;
-  deltaRot = v4fscale(deltaRot,
-    gGui.timeElapsedSecond);
+
+  mouseDelta = gui_getFacingDeltaRad();
+  deltaRot.x = -mouseDelta.x;
+  deltaRot.y = mouseDelta.y;
 
   // Update elytra.
   (void)fpvElytra_update(gState.movementInput, deltaRot, gGui.timeElapsedSecond);
@@ -436,17 +435,4 @@ void updateCameraMain(MainCamera *this) {
     this->context1.cameraPos = gState.mat[3];
     this->context1.cameraPos.w = 1.0f;
   }
-}
-
-// ----------------------------------------------------------------------------
-// [SECTION] Status update functions.
-// ----------------------------------------------------------------------------
-
-/**
- * Update the mouse delta, only called by the hook on MainCamera::_getdelta().
- */
-void updateMouseDelta(v4f delta) {
-  //gMouseDelta.x = gState.facingInput.x;
-  //gMouseDelta.y = gState.facingInput.y;
-  gMouseDelta = delta;
 }

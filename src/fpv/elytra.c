@@ -39,7 +39,7 @@ static inline void elytraFirework(v4f mDelta, f32 timeElapsed) {
     )
   );
 
-  // Convert m/gt to m/s and apply accelerate.
+  // Convert m/gt^2 to m/s^2 and apply accelerate.
   gElytra.vel = v4fadd(gElytra.vel, v4fscale(tmp1, mDelta.z * timeElapsed * 400.0f));
 }
 
