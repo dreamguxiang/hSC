@@ -12,10 +12,6 @@
 #include "ui/settings.h"
 #include "ui/menu.h"
 
-#define SBV(v, b) ((v) |= (b))
-#define CBV(v, b) ((v) &= ~(b))
-#define BTV(v, b) ((v) & (b))
-
 static char gPrefPath[260]
   , gIniPath[260];
 
@@ -30,7 +26,6 @@ GUIOptions_t gOptions = {
     .swapRollYaw = 0
   }
 };
-v4f gMouseDelta;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
   HWND hWnd,
@@ -57,7 +52,13 @@ static void gui_wndProcEx(
       *uBlock = io.WantCaptureMouse;
       return;
     case WM_KEYDOWN:
-      if (gState.overrideMode == 1 && gState.enable) {
+      *uBlock = io.WantCaptureKeyboard;
+
+      if (!gState.enable)
+        return;
+
+      if (gState.overrideMode == OM_FREE) {
+        // Freecam mode.
         if (
           wParam == 'W'
           || wParam == 'A'
@@ -69,17 +70,24 @@ static void gui_wndProcEx(
           || wParam == VK_SHIFT
         )
           *uBlock = 1;
-        else 
-          *uBlock = io.WantCaptureKeyboard;
-      } else
-        *uBlock = io.WantCaptureKeyboard;
+      } else if (gState.overrideMode == OM_FPV) {
+        // FPV mode.
+        if (
+          wParam == 'W'
+          || wParam == 'A'
+          || wParam == 'S'
+          || wParam == 'D'
+          || wParam == VK_SPACE
+        )
+          *uBlock = 1;
+      }
       return;
     case WM_CHAR:
       *uBlock = 1;
       return;
+    default:
+      *uBlock = 0;
   }
-
-  *uBlock = 0;
 }
 
 /**
@@ -226,8 +234,10 @@ i08 gui_update() {
     gui_windowSettings();
 
   // Handle keyboard input.
-  if (gState.overrideMode == 1)
+  if (gState.overrideMode == OM_FREE)
     gui_inputFreecam();
+  if (gState.overrideMode == OM_FPV)
+    gui_inputFPV();
 
   // Rendering.
   ImGui::EndFrame();

@@ -2,10 +2,12 @@
 
 #include "mth/matrix.h"
 #include "setup.h"
-#include "fpv.h"
+#include "fpv/fpv.h"
+#include "fpv/elytra.h"
 #include "ui/gui.h"
+#include "ui/input.h"
 #include "camera.h"
-#include "aabb.h"
+#include "mth/aabb.h"
 
 // ----------------------------------------------------------------------------
 // [SECTION] Declarations and definitions.
@@ -81,7 +83,7 @@ static inline void rotationToEulerXYZ(v4f *matrix, v4f euler) {
  * 
  * The pointer passed into this function must be a local variable address.
  */
- i08 fpvCheckCollision(
+static i08 freecamCheckCollision(
   AABB_t *aabb,
   v4f *delta
 ) {
@@ -89,14 +91,20 @@ static inline void rotationToEulerXYZ(v4f *matrix, v4f euler) {
     , done = 0;
   v4f vec = *delta
     , vertices[8]
-    , origin, dir;
+    , origin, dir, center;
   f32 len;
   i32 iter;
   InteractionResult ir;
 
-  if (!gSavedLevelContext || !gTramp.fn_Level_interactionTest)
+  if (
+    !gSavedLevelContext
+    || !gTramp.fn_Level_interactionTest
+    || !delta
+    || !aabb
+  )
     return 0;
 
+  center = aabb_getCenter(aabb);
   aabb_getAllVertices(aabb, vertices);
   dir = v4fnormalize(vec);
   len = v4flen(vec);
@@ -106,10 +114,21 @@ static inline void rotationToEulerXYZ(v4f *matrix, v4f euler) {
     iter = 0;
     origin = vertices[i];
 
+    if (v4fdot(vec, v4fsub(origin, center)) < 0.0f)
+      // Skip vertices which is on the "back" of the AABB.
+      continue;
+
     while (
       ((FnWorld_interactionTest)gTramp.fn_Level_interactionTest)(
         gSavedLevelContext, &origin, &dir, len, NULL, (i08 *)&ir)
     ) {
+      if (iter >= 4) {
+        // If it still collides after 4 checks, then directly set the delta to
+        // 0.
+        memset(&vec, 0, sizeof(vec));
+        break;
+      }
+
       // Subtract the projection of the displacement vector onto the normal
       // vector to obtain the tangential component of the displacement vector.
       vec = v4fsub(vec, v4fprojection(vec, ir.normalize));
@@ -126,8 +145,6 @@ static inline void rotationToEulerXYZ(v4f *matrix, v4f euler) {
       }
 
       iter++;
-      if (iter >= 3)
-        break;
     }
 
     if (done)
@@ -330,9 +347,8 @@ void preupdateFreecam(MainCamera *this) {
 
   if (gState.freecamCollision) {
     // Build AABB and check collision.
-    aabb.lower = v4fsub(gState.pos, size);
-    aabb.upper = v4fadd(gState.pos, size);
-    fpvCheckCollision(&aabb, &delta);
+    aabb_fromCenter(&aabb, gState.pos, size);
+    freecamCheckCollision(&aabb, &delta);
   }
 
   // Multiply by speed.
@@ -343,6 +359,33 @@ void preupdateFreecam(MainCamera *this) {
 
   // Always override the position.
   gState.usePos = 1;
+}
+
+void preupdateFPV(MainCamera *this) {
+  v4f deltaRot = {0};
+
+  if (gState.resetPosFlag) {
+    gState.resetPosFlag = 0;
+    (void)fpvElytra_init(this->context1.cameraPos, V4FZERO, FPVRST_POS);
+    return;
+  }
+  
+  deltaRot.x = -gMouseDelta.x * gOptions.general.mouseSensitivity;
+  deltaRot.y = gMouseDelta.y * gOptions.general.mouseSensitivity * gOptions.general.verticalSenseScale;
+  deltaRot = v4fscale(deltaRot,
+    gGui.timeElapsedSecond);
+
+  // Update elytra.
+  (void)fpvElytra_update(gState.movementInput, deltaRot, gGui.timeElapsedSecond);
+
+  gState.rot = gElytra.rot;
+  gState.pos = gElytra.pos;
+
+  eulerToRotationXYZ(gState.rot, gState.mat);
+  gState.mat[3] = gState.pos;
+
+  // Override matrix and position.
+  gState.usePos = gState.useMatrix = 1;
 }
 
 /**
@@ -374,7 +417,7 @@ void preupdateCameraMain(MainCamera *this) {
   else if (gState.overrideMode == OM_FREE)
     preupdateFreecam(this);
   else if (gState.overrideMode == OM_FPV)
-    ;//updatePropFPV(this);
+    preupdateFPV(this);
 }
 
 /**

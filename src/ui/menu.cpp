@@ -3,11 +3,11 @@
 
 #include "ui/gui.h"
 #include "ui/menu.h"
-
-#define clamp(x, a, b) ((x) < (a) ? (a) : (x) > (b) ? (b) : (x))
+#include "mth/macros.h"
 
 static const char *MODES[] = { "FirstPerson", "Front", "Placed", "WhiskerCamera" }
-  , *FREECAMMODES[] = { "Orientation", "Axial", "Full-direction" };
+  , *FREECAMMODES[] = { "Orientation", "Axial", "Full-direction" }
+  , *FPVMODES[] = { "Elytra", "Barrel-roll" };
 
 void gui_displayTips(const char *desc, i08 sameLine) {
   if (sameLine)
@@ -79,6 +79,13 @@ static void gui_subMenuFreecam() {
 
 static void gui_subMenuFPV() {
   ImGui::SeparatorText("FPV");
+
+  ImGui::Combo(
+    "Mode",
+    &gState.fpvMode,
+    FPVMODES,
+    IM_ARRAYSIZE(FPVMODES));
+
   if (ImGui::Button("Reset pos"))
     gState.resetPosFlag = 1;
 }

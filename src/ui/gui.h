@@ -58,6 +58,9 @@ typedef struct {
   f32 freecamRotateSpeed;
   i08 freecamCollision;
 
+  // FPV mode.
+  i32 fpvMode;
+
   // Pre-calculated rotation matrix and pos.
   i08 useMatrix;
   i08 usePos;
@@ -89,7 +92,6 @@ typedef struct {
 extern GUI_t gGui;
 extern GUIState_t gState;
 extern GUIOptions_t gOptions;
-extern v4f gMouseDelta;
 
 i08 gui_init(HMODULE hModule);
 i08 gui_deinit();
