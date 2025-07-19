@@ -7,14 +7,18 @@ on:
 
 jobs:
   build:
-
     runs-on: windows-2022
-
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: configure
-      run: mkdir dist
+      - name: configure
+        run: mkdir dist
 
-    - name: build
-      run: make all
+      - name: build
+        run: make all
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-artifacts
+          path: dist/
